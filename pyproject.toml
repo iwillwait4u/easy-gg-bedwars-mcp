@@ -1,0 +1,23 @@
+[project]
+name = "easy-gg-bedwars-custom"
+version = "0.1.0"
+description = "Local-first MCP server for Easy.gg BedWars custom scripting and Code Sync."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.27.1",
+    "mcp>=1.2.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["creative_scripting_mcp"]
+
+[project.scripts]
+easy-gg-bedwars-custom = "creative_scripting_mcp.server:main"
+
+[tool.pyright]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
+include = ["src", "maintenance", "server.py", "tools.py"]
+extraPaths = ["src"]

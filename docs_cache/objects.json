@@ -1,0 +1,1505 @@
+{
+  "AbilityConfig": {
+    "description": "Configuration table passed to AbilityService.createAbility().",
+    "functions": [],
+    "source_name": "AbilityConfig | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/abilityconfig",
+    "parameters": [
+      {
+        "name": "maxProgress",
+        "type": "number",
+        "notes": "The maximum amount of progress that can be stored on the ability."
+      },
+      {
+        "name": "progressPerUse",
+        "type": "number",
+        "notes": "The amount of progress used every time the ability is activated."
+      },
+      {
+        "name": "iconImage",
+        "type": "string | nil",
+        "notes": "An optional rbxassetid of the image that will be shown on the button for the ability. . UseAbility (function (event) if (event . abilityName == \" yeehaw \") then AnnouncementService . sendAnnouncement (\" YEEHAW! \") end end) -- Create a \"yeehaw\" ability that is activated with the X key -- The ability has 2 stacks of \"yeehaw\" local abilityConfig = { maxProgress = 10, progressPerUse = 5 iconImage = \"."
+      },
+      {
+        "name": "rbxassetid",
+        "type": "//7193644599",
+        "notes": "\" } AbilityService . createAbility (\" yeehaw \", KeyCode . X, abilityConfig) -- Add the ability to the host AbilityService . enableAbility (MatchService . getHost (), \" yeehaw \")."
+      }
+    ],
+    "examples": [
+      {
+        "description": "Create a \"yeehaw\" ability that is activated with the X key",
+        "code": "Events.UseAbility(function (event)\n    if (event.abilityName == \"yeehaw\") then\n        AnnouncementService.sendAnnouncement(\"YEEHAW!\")\n    end\nend)\n\n-- Create a \"yeehaw\" ability that is activated with the X key\n-- The ability has 2 stacks of \"yeehaw\"\nlocal abilityConfig = {\n    maxProgress = 10, \n    progressPerUse = 5\n    iconImage = \"rbxassetid://7193644599\"\n}\nAbilityService.createAbility(\"yeehaw\", KeyCode.X, abilityConfig)\n\n-- Add the ability to the host\nAbilityService.enableAbility(MatchService.getHost(), \"yeehaw\")"
+      }
+    ]
+  },
+  "Block": {
+    "description": "Represents a BedWars world block.",
+    "functions": [],
+    "source_name": "Block | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/block",
+    "parameters": [
+      {
+        "name": "blockType",
+        "type": "ItemType",
+        "notes": "The type of block."
+      },
+      {
+        "name": "position",
+        "type": "Vector3",
+        "notes": "Where the block is located."
+      },
+      {
+        "name": "placedByUserId",
+        "type": "number | nil",
+        "notes": "The Roblox user ID of the player who placed the block (may not exist if placed by the server)."
+      }
+    ]
+  },
+  "Entity": {
+    "description": "Represents an in-game entity.",
+    "functions": [
+      {
+        "name": "getPlayer",
+        "signature": "entity:getPlayer(): Player | nil",
+        "notes": "Returns the player playing as this entity. If this entity is an NPC (like a Creature) this will return nil."
+      },
+      {
+        "name": "getHealth",
+        "signature": "entity:getHealth(): number",
+        "notes": "Returns current health of the entity."
+      },
+      {
+        "name": "getMaxHealth",
+        "signature": "entity:getMaxHealth(): number",
+        "notes": "Returns max health of the entity."
+      },
+      {
+        "name": "isAlive",
+        "signature": "entity:isAlive(): bool",
+        "notes": "Returns true if the entity is alive."
+      },
+      {
+        "name": "getPosition",
+        "signature": "entity:getPosition(): Vector3 | nil",
+        "notes": "Returns the current position of the entity."
+      },
+      {
+        "name": "setPosition",
+        "signature": "entity:setPosition(position: Vector3)",
+        "notes": "Sets the position of the entity."
+      },
+      {
+        "name": "getCFrame",
+        "signature": "entity:getCFrame(): CFrame | nil",
+        "notes": "Returns the current CFrame of the entity."
+      },
+      {
+        "name": "setCFrame",
+        "signature": "entity:setCFrame(cframe: CFrame)",
+        "notes": "Sets the CFrame of the entity."
+      },
+      {
+        "name": "setMaxHealth",
+        "signature": "entity:setMaxHealth(health: number)",
+        "notes": "Sets the max health of the entity."
+      },
+      {
+        "name": "setCustomName",
+        "signature": "entity:setCustomName(name: string): nil",
+        "notes": "Sets a custom display name on the entity's healthbar."
+      },
+      {
+        "name": "destroy",
+        "signature": "entity:destroy()",
+        "notes": "Destroys the entity."
+      }
+    ],
+    "source_name": "Entity | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/entity",
+    "methods": [
+      {
+        "name": "getPlayer",
+        "signature": "entity:getPlayer(): Player | nil",
+        "notes": "Returns the player playing as this entity. If this entity is an NPC (like a Creature) this will return nil."
+      },
+      {
+        "name": "getHealth",
+        "signature": "entity:getHealth(): number",
+        "notes": "Returns current health of the entity."
+      },
+      {
+        "name": "getMaxHealth",
+        "signature": "entity:getMaxHealth(): number",
+        "notes": "Returns max health of the entity."
+      },
+      {
+        "name": "isAlive",
+        "signature": "entity:isAlive(): bool",
+        "notes": "Returns true if the entity is alive."
+      },
+      {
+        "name": "getPosition",
+        "signature": "entity:getPosition(): Vector3 | nil",
+        "notes": "Returns the current position of the entity."
+      },
+      {
+        "name": "setPosition",
+        "signature": "entity:setPosition(position: Vector3)",
+        "notes": "Sets the position of the entity."
+      },
+      {
+        "name": "getCFrame",
+        "signature": "entity:getCFrame(): CFrame | nil",
+        "notes": "Returns the current CFrame of the entity."
+      },
+      {
+        "name": "setCFrame",
+        "signature": "entity:setCFrame(cframe: CFrame)",
+        "notes": "Sets the CFrame of the entity."
+      },
+      {
+        "name": "setMaxHealth",
+        "signature": "entity:setMaxHealth(health: number)",
+        "notes": "Sets the max health of the entity."
+      },
+      {
+        "name": "setCustomName",
+        "signature": "entity:setCustomName(name: string): nil",
+        "notes": "Sets a custom display name on the entity's healthbar."
+      },
+      {
+        "name": "destroy",
+        "signature": "entity:destroy()",
+        "notes": "Destroys the entity."
+      }
+    ],
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "Events.BlockPlace(function(event)\n    local entity = event.player:getEntity()\n    if not entity then\n        return\n    end\n    entity:setPosition(event.position + Vector3.new(0,3,0))\nend)"
+      }
+    ]
+  },
+  "Generator": {
+    "description": "Object returned by GeneratorService.createGenerator().",
+    "functions": [
+      {
+        "name": "setCooldown",
+        "signature": "generator:setCooldown(cooldown: number)",
+        "notes": "Sets the cooldown of the generator (in seconds). This is how many seconds passes in-between item drops. Defaults to 20 seconds."
+      },
+      {
+        "name": "setItem",
+        "signature": "generator:setItem(itemType: ItemType)",
+        "notes": "Sets the type of item that is dropped by the generator."
+      },
+      {
+        "name": "setMax",
+        "signature": "generator:setMax(max: number)",
+        "notes": "Sets the max stack size that the generator can hold. Once the max stack size is reached, no more items will be generated until the items are picked up. Defaults to 10."
+      },
+      {
+        "name": "setPosition",
+        "signature": "generator:setPosition(position: Vector3)",
+        "notes": "Sets the position of the generator."
+      },
+      {
+        "name": "getPosition",
+        "signature": "generator:getPosition(): Vector3",
+        "notes": "Returns the position of the generator."
+      },
+      {
+        "name": "dropItem",
+        "signature": "generator:dropItem(itemType: ItemType)",
+        "notes": "Immediately drops an item from the generator."
+      },
+      {
+        "name": "destroy",
+        "signature": "generator:destroy()",
+        "notes": "Destroys the generator."
+      }
+    ],
+    "source_name": "Generator | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/generator",
+    "methods": [
+      {
+        "name": "setCooldown",
+        "signature": "generator:setCooldown(cooldown: number)",
+        "notes": "Sets the cooldown of the generator (in seconds). This is how many seconds passes in-between item drops. Defaults to 20 seconds."
+      },
+      {
+        "name": "setItem",
+        "signature": "generator:setItem(itemType: ItemType)",
+        "notes": "Sets the type of item that is dropped by the generator."
+      },
+      {
+        "name": "setMax",
+        "signature": "generator:setMax(max: number)",
+        "notes": "Sets the max stack size that the generator can hold. Once the max stack size is reached, no more items will be generated until the items are picked up. Defaults to 10."
+      },
+      {
+        "name": "setPosition",
+        "signature": "generator:setPosition(position: Vector3)",
+        "notes": "Sets the position of the generator."
+      },
+      {
+        "name": "getPosition",
+        "signature": "generator:getPosition(): Vector3",
+        "notes": "Returns the position of the generator."
+      },
+      {
+        "name": "dropItem",
+        "signature": "generator:dropItem(itemType: ItemType)",
+        "notes": "Immediately drops an item from the generator."
+      },
+      {
+        "name": "destroy",
+        "signature": "generator:destroy()",
+        "notes": "Destroys the generator."
+      }
+    ]
+  },
+  "Knockback": {
+    "description": "Configuration object for knockback applied during damage events.",
+    "functions": [],
+    "source_name": "Knockback | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/knockback",
+    "parameters": [
+      {
+        "name": "fromPosition",
+        "type": "Vector3",
+        "notes": "The position from which knockback should be applied. If this is equal to the position of the hit entity, no knockback will be applied."
+      },
+      {
+        "name": "horizontal",
+        "type": "number | nil",
+        "notes": "The amount of horizontal knockback applied. Defaults to 1. A value of 0 will apply no horizontal knockback."
+      },
+      {
+        "name": "vertical",
+        "type": "number | nil",
+        "notes": "The amount of vertical knockback applied. Defaults to 1. A value of 0 will apply no vertical knockback."
+      }
+    ],
+    "examples": [
+      {
+        "description": "All damage events launch the hit entity into the air with no damage",
+        "code": "-- All damage events launch the hit entity into the air with no damage\nEvents.EntityDamage(function(event)\n    event.damage = 0\n    event.knockback.horizontal = 0.5\n    event.knockback.vertical = 5\n    event.knockback.fromPosition = event.entity:getPosition() - Vector3.new(0,3,0)\nend)"
+      },
+      {
+        "description": "Cancels knockback for all damage events",
+        "code": "-- Cancels knockback for all damage events\nEvents.EntityDamage(function(event)\n    event.knockback.horizontal = 0\n    event.knockback.vertical = 0\nend)"
+      }
+    ]
+  },
+  "Leaderboard": {
+    "description": "Object returned by UIService.createLeaderboard().",
+    "functions": [
+      {
+        "name": "getKeys",
+        "signature": "leaderboard:getKeys(): Array< Player | Team | string>",
+        "notes": "Returns the keys of the leaderboard."
+      },
+      {
+        "name": "addKey",
+        "signature": "leaderboard:addKey(key: Player | Team | string, initialScore: number | nil)",
+        "notes": "Adds a new key to the leaderboard of the given type. You can optionally give the key an initial score, which otherwise defaults to zero."
+      },
+      {
+        "name": "removeKey",
+        "signature": "leaderboard:removeKey(key: Player | Team | string)",
+        "notes": "Removes the key from the leaderboard."
+      },
+      {
+        "name": "addScore",
+        "signature": "leaderboard:addScore(key: Player | Team | string, amount: number)",
+        "notes": "Adds the given amount to the current score of the key."
+      },
+      {
+        "name": "subScore",
+        "signature": "leaderboard:subScore(key: Player | Team | string, amount: number)",
+        "notes": "Subtracts the given amount from the current score of the key."
+      },
+      {
+        "name": "setScore",
+        "signature": "leaderboard:setScore(key: Player | Team | string, amount: number)",
+        "notes": "Sets the score of the key to the given amount."
+      },
+      {
+        "name": "getScore",
+        "signature": "leaderboard:getScore(key: Player | Team | string): number | nil",
+        "notes": "Returns the current score of the key. Returns nil if the key is not part of the leaderboard."
+      },
+      {
+        "name": "getPlace",
+        "signature": "leaderboard:getPlace(place: number): Player | Team | string | nil",
+        "notes": "Returns the key located at the place. Returns nil if there is no key at the place."
+      },
+      {
+        "name": "clear",
+        "signature": "leaderboard:clear()",
+        "notes": "Clears all leaderboard entries."
+      }
+    ],
+    "source_name": "Leaderboard | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/leaderboard",
+    "methods": [
+      {
+        "name": "getKeys",
+        "signature": "leaderboard:getKeys(): Array< Player | Team | string>",
+        "notes": "Returns the keys of the leaderboard."
+      },
+      {
+        "name": "addKey",
+        "signature": "leaderboard:addKey(key: Player | Team | string, initialScore: number | nil)",
+        "notes": "Adds a new key to the leaderboard of the given type. You can optionally give the key an initial score, which otherwise defaults to zero."
+      },
+      {
+        "name": "removeKey",
+        "signature": "leaderboard:removeKey(key: Player | Team | string)",
+        "notes": "Removes the key from the leaderboard."
+      },
+      {
+        "name": "addScore",
+        "signature": "leaderboard:addScore(key: Player | Team | string, amount: number)",
+        "notes": "Adds the given amount to the current score of the key."
+      },
+      {
+        "name": "subScore",
+        "signature": "leaderboard:subScore(key: Player | Team | string, amount: number)",
+        "notes": "Subtracts the given amount from the current score of the key."
+      },
+      {
+        "name": "setScore",
+        "signature": "leaderboard:setScore(key: Player | Team | string, amount: number)",
+        "notes": "Sets the score of the key to the given amount."
+      },
+      {
+        "name": "getScore",
+        "signature": "leaderboard:getScore(key: Player | Team | string): number | nil",
+        "notes": "Returns the current score of the key. Returns nil if the key is not part of the leaderboard."
+      },
+      {
+        "name": "getPlace",
+        "signature": "leaderboard:getPlace(place: number): Player | Team | string | nil",
+        "notes": "Returns the key located at the place. Returns nil if there is no key at the place."
+      },
+      {
+        "name": "clear",
+        "signature": "leaderboard:clear()",
+        "notes": "Clears all leaderboard entries."
+      }
+    ]
+  },
+  "MatchState": {
+    "description": "Object describing the different match states.",
+    "functions": [],
+    "source_name": "MatchState | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/matchstate",
+    "values": {
+      "PRE": 0,
+      "RUNNING": 1,
+      "POST": 2
+    },
+    "value_notes": {
+      "PRE": "Before the host/player starts the match.",
+      "RUNNING": "After the match has been started and is currently running.",
+      "POST": "After the match has ended, whether by host action or game flow."
+    }
+  },
+  "Model": {
+    "description": "Object returned by ModelService.createModel().",
+    "functions": [
+      {
+        "name": "setPosition",
+        "signature": "model:setPosition(position: Vector3)",
+        "notes": "Sets the position of the model."
+      },
+      {
+        "name": "getPosition",
+        "signature": "model:getPosition(): Vector3",
+        "notes": "Returns the position of the model."
+      },
+      {
+        "name": "setRotation",
+        "signature": "model:setRotation(rotation: Vector3)",
+        "notes": "Sets the rotation of the model."
+      },
+      {
+        "name": "getRotation",
+        "signature": "model:getRotation(): Vector3",
+        "notes": "Returns the rotation of the model."
+      },
+      {
+        "name": "setCFrame",
+        "signature": "model:setCFrame(cframe: CFrame)",
+        "notes": "Sets the CFrame of the model to the specified CFrame."
+      },
+      {
+        "name": "getCFrame",
+        "signature": "model:getCFrame(): CFrame",
+        "notes": "Returns the CFrame of the model."
+      },
+      {
+        "name": "setScale",
+        "signature": "model:setScale(scale: number)",
+        "notes": "Sets the scale of the model."
+      },
+      {
+        "name": "getScale",
+        "signature": "model:getScale(): number",
+        "notes": "Returns the scale of the model."
+      },
+      {
+        "name": "setCollidable",
+        "signature": "model:setCollidable(collidable: boolean)",
+        "notes": "Sets whether the model should collide with other models, blocks, and players. Defaults to true on creation."
+      },
+      {
+        "name": "setAnchored",
+        "signature": "model:setAnchored(anchored: boolean)",
+        "notes": "Sets whether the model should have physics applied to it. Defaults to true on creation."
+      },
+      {
+        "name": "setTransparency",
+        "signature": "model:setTransparency(transparency: number)",
+        "notes": "Sets the transparency of the model. Transparency ranges from 0 (opaque) to 1 (invisible)."
+      },
+      {
+        "name": "destroy",
+        "signature": "model:destroy()",
+        "notes": "Destroys the model."
+      }
+    ],
+    "source_name": "Model | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/model",
+    "parameters": [
+      {
+        "name": "modelName",
+        "type": "ModelType",
+        "notes": "Name of the model to be imported."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setPosition",
+        "signature": "model:setPosition(position: Vector3)",
+        "notes": "Sets the position of the model."
+      },
+      {
+        "name": "getPosition",
+        "signature": "model:getPosition(): Vector3",
+        "notes": "Returns the position of the model."
+      },
+      {
+        "name": "setRotation",
+        "signature": "model:setRotation(rotation: Vector3)",
+        "notes": "Sets the rotation of the model."
+      },
+      {
+        "name": "getRotation",
+        "signature": "model:getRotation(): Vector3",
+        "notes": "Returns the rotation of the model."
+      },
+      {
+        "name": "setCFrame",
+        "signature": "model:setCFrame(cframe: CFrame)",
+        "notes": "Sets the CFrame of the model to the specified CFrame."
+      },
+      {
+        "name": "getCFrame",
+        "signature": "model:getCFrame(): CFrame",
+        "notes": "Returns the CFrame of the model."
+      },
+      {
+        "name": "setScale",
+        "signature": "model:setScale(scale: number)",
+        "notes": "Sets the scale of the model."
+      },
+      {
+        "name": "getScale",
+        "signature": "model:getScale(): number",
+        "notes": "Returns the scale of the model."
+      },
+      {
+        "name": "setCollidable",
+        "signature": "model:setCollidable(collidable: boolean)",
+        "notes": "Sets whether the model should collide with other models, blocks, and players. Defaults to true on creation."
+      },
+      {
+        "name": "setAnchored",
+        "signature": "model:setAnchored(anchored: boolean)",
+        "notes": "Sets whether the model should have physics applied to it. Defaults to true on creation."
+      },
+      {
+        "name": "setTransparency",
+        "signature": "model:setTransparency(transparency: number)",
+        "notes": "Sets the transparency of the model. Transparency ranges from 0 (opaque) to 1 (invisible)."
+      },
+      {
+        "name": "destroy",
+        "signature": "model:destroy()",
+        "notes": "Destroys the model."
+      }
+    ]
+  },
+  "ParticleEmitter": {
+    "description": "Object returned by ParticleService.createEmitter().",
+    "functions": [
+      {
+        "name": "setTexture",
+        "signature": "particleEmitter:setTexture(texture: string)",
+        "notes": "Sets the rbxassetid of the texture of the particle emitter."
+      },
+      {
+        "name": "setColor",
+        "signature": "particleEmitter:setColor(color: ColorSequence)",
+        "notes": "Sets the color of the particles emitted."
+      },
+      {
+        "name": "setRate",
+        "signature": "particleEmitter:setRate(rate: number)",
+        "notes": "Sets the rate of the particles emitted."
+      },
+      {
+        "name": "setPosition",
+        "signature": "particleEmitter:setPosition(position: Vector3)",
+        "notes": "Sets the position of the particle emitter."
+      },
+      {
+        "name": "getPosition",
+        "signature": "particleEmitter:getPosition(): Vector3",
+        "notes": "Returns the position of the particle emitter."
+      },
+      {
+        "name": "setRotation",
+        "signature": "particleEmitter:setRotation(rotation: Vector3)",
+        "notes": "Sets the rotation of the particle emitter."
+      },
+      {
+        "name": "getRotation",
+        "signature": "particleEmitter:getRotation(): Vector3",
+        "notes": "Returns the rotation of the particle emitter."
+      },
+      {
+        "name": "setCFrame",
+        "signature": "particleEmitter:setCFrame(cframe: CFrame)",
+        "notes": "Sets the CFrame of the particle emitter."
+      },
+      {
+        "name": "getCFrame",
+        "signature": "particleEmitter:getCFrame(): CFrame",
+        "notes": "Returns the CFrame of the particle emitter."
+      },
+      {
+        "name": "setRegionSize",
+        "signature": "particleEmitter:setRegionSize(size: Vector3)",
+        "notes": "Sets the size of the region from which particles are emitted."
+      },
+      {
+        "name": "getRegionSize",
+        "signature": "particleEmitter:getRegionSize(): Vector3",
+        "notes": "Returns the size of the region from which particles are emitted."
+      },
+      {
+        "name": "setSize",
+        "signature": "particleEmitter:setSize(size: NumberSequence)",
+        "notes": "Sets the size of the particles emitted."
+      },
+      {
+        "name": "getSize",
+        "signature": "particleEmitter:getSize(): NumberSequence",
+        "notes": "Returns the size of the particles emitted."
+      },
+      {
+        "name": "setTransparency",
+        "signature": "particleEmitter:setTransparency(transparency: NumberSequence)",
+        "notes": "Sets the transparency of the particles emitted."
+      },
+      {
+        "name": "getTransparency",
+        "signature": "particleEmitter:getTransparency(): NumberSequence",
+        "notes": "Returns the transparency of the particles emitted."
+      },
+      {
+        "name": "setBrightness",
+        "signature": "particleEmitter:setBrightness(brightness: number)",
+        "notes": "Sets the brightness of the particles emitted."
+      },
+      {
+        "name": "setSpeed",
+        "signature": "particleEmitter:setSpeed(speed: NumberRange)",
+        "notes": "Sets the speed of the particles emitted."
+      },
+      {
+        "name": "setAcceleration",
+        "signature": "particleEmitter:setAcceleration(acceleration: Vector3)",
+        "notes": "Sets the acceleration of the particles emitted."
+      },
+      {
+        "name": "setDrag",
+        "signature": "particleEmitter:setDrag(drag: number)",
+        "notes": "Sets the drag of the particles emitted."
+      },
+      {
+        "name": "setLifetime",
+        "signature": "particleEmitter:setLifetime(lifetime: NumberRange)",
+        "notes": "Sets the lifetime of the particles emitted."
+      },
+      {
+        "name": "setParticleOrientation",
+        "signature": "particleEmitter:setParticleOrientation(orientation: ParticleOrientation)",
+        "notes": "Sets the particle orientation of the particles emitted. Written as ParticleOrientation.FacingCamera."
+      },
+      {
+        "name": "setParticleRotation",
+        "signature": "particleEmitter:setParticleRotation(rotation: NumberRange)",
+        "notes": "Sets the particle rotation of the particles emitted."
+      },
+      {
+        "name": "setRotSpeed",
+        "signature": "particleEmitter:setRotSpeed(speed: NumberRange)",
+        "notes": "Sets the rotation speed of the particles emitted."
+      },
+      {
+        "name": "setLightInfluence",
+        "signature": "particleEmitter:setLightInfluence(influence: number)",
+        "notes": "Sets the light influence of the particles emitted."
+      },
+      {
+        "name": "setLightEmission",
+        "signature": "particleEmitter:setLightEmission(emission: number)",
+        "notes": "Sets the light emission of the particles emitted."
+      },
+      {
+        "name": "setSquash",
+        "signature": "particleEmitter:setSquash(squash: NumberSequence)",
+        "notes": "Sets the squash of the particles emitted."
+      },
+      {
+        "name": "setSpreadAngle",
+        "signature": "particleEmitter:setSpreadAngle(angle: Vector2)",
+        "notes": "Sets the spread angle of the particles emitted."
+      },
+      {
+        "name": "setTimeScale",
+        "signature": "particleEmitter:setTimeScale(timeScale: number)",
+        "notes": "Sets the time scale of the particles emitted."
+      },
+      {
+        "name": "setEnabled",
+        "signature": "particleEmitter:setEnabled(enabled: boolean)",
+        "notes": "Enables or disables the particle emitter."
+      },
+      {
+        "name": "setLockedToPart",
+        "signature": "particleEmitter:setLockedToPart(locked: boolean)",
+        "notes": "Sets the particle emission to be locked to the emission source, or whether the particles will linger around the position they were emitted if the emission source moves."
+      },
+      {
+        "name": "emit",
+        "signature": "particleEmitter:emit(amount: number | nil) Emits",
+        "notes": "the given amount of particles, otherwise defaults to the rate of the particle emitter."
+      },
+      {
+        "name": "clear",
+        "signature": "particleEmitter:clear() Clears",
+        "notes": "any currently emitted particles."
+      },
+      {
+        "name": "destroy",
+        "signature": "particleEmitter:destroy()",
+        "notes": "Destroys the particle emitter."
+      }
+    ],
+    "source_name": "ParticleEmitter | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/particleemitter",
+    "methods": [
+      {
+        "name": "setTexture",
+        "signature": "particleEmitter:setTexture(texture: string)",
+        "notes": "Sets the rbxassetid of the texture of the particle emitter."
+      },
+      {
+        "name": "setColor",
+        "signature": "particleEmitter:setColor(color: ColorSequence)",
+        "notes": "Sets the color of the particles emitted."
+      },
+      {
+        "name": "setRate",
+        "signature": "particleEmitter:setRate(rate: number)",
+        "notes": "Sets the rate of the particles emitted."
+      },
+      {
+        "name": "setPosition",
+        "signature": "particleEmitter:setPosition(position: Vector3)",
+        "notes": "Sets the position of the particle emitter."
+      },
+      {
+        "name": "getPosition",
+        "signature": "particleEmitter:getPosition(): Vector3",
+        "notes": "Returns the position of the particle emitter."
+      },
+      {
+        "name": "setRotation",
+        "signature": "particleEmitter:setRotation(rotation: Vector3)",
+        "notes": "Sets the rotation of the particle emitter."
+      },
+      {
+        "name": "getRotation",
+        "signature": "particleEmitter:getRotation(): Vector3",
+        "notes": "Returns the rotation of the particle emitter."
+      },
+      {
+        "name": "setCFrame",
+        "signature": "particleEmitter:setCFrame(cframe: CFrame)",
+        "notes": "Sets the CFrame of the particle emitter."
+      },
+      {
+        "name": "getCFrame",
+        "signature": "particleEmitter:getCFrame(): CFrame",
+        "notes": "Returns the CFrame of the particle emitter."
+      },
+      {
+        "name": "setRegionSize",
+        "signature": "particleEmitter:setRegionSize(size: Vector3)",
+        "notes": "Sets the size of the region from which particles are emitted."
+      },
+      {
+        "name": "getRegionSize",
+        "signature": "particleEmitter:getRegionSize(): Vector3",
+        "notes": "Returns the size of the region from which particles are emitted."
+      },
+      {
+        "name": "setSize",
+        "signature": "particleEmitter:setSize(size: NumberSequence)",
+        "notes": "Sets the size of the particles emitted."
+      },
+      {
+        "name": "getSize",
+        "signature": "particleEmitter:getSize(): NumberSequence",
+        "notes": "Returns the size of the particles emitted."
+      },
+      {
+        "name": "setTransparency",
+        "signature": "particleEmitter:setTransparency(transparency: NumberSequence)",
+        "notes": "Sets the transparency of the particles emitted."
+      },
+      {
+        "name": "getTransparency",
+        "signature": "particleEmitter:getTransparency(): NumberSequence",
+        "notes": "Returns the transparency of the particles emitted."
+      },
+      {
+        "name": "setBrightness",
+        "signature": "particleEmitter:setBrightness(brightness: number)",
+        "notes": "Sets the brightness of the particles emitted."
+      },
+      {
+        "name": "setSpeed",
+        "signature": "particleEmitter:setSpeed(speed: NumberRange)",
+        "notes": "Sets the speed of the particles emitted."
+      },
+      {
+        "name": "setAcceleration",
+        "signature": "particleEmitter:setAcceleration(acceleration: Vector3)",
+        "notes": "Sets the acceleration of the particles emitted."
+      },
+      {
+        "name": "setDrag",
+        "signature": "particleEmitter:setDrag(drag: number)",
+        "notes": "Sets the drag of the particles emitted."
+      },
+      {
+        "name": "setLifetime",
+        "signature": "particleEmitter:setLifetime(lifetime: NumberRange)",
+        "notes": "Sets the lifetime of the particles emitted."
+      },
+      {
+        "name": "setParticleOrientation",
+        "signature": "particleEmitter:setParticleOrientation(orientation: ParticleOrientation)",
+        "notes": "Sets the particle orientation of the particles emitted. Written as ParticleOrientation.FacingCamera."
+      },
+      {
+        "name": "setParticleRotation",
+        "signature": "particleEmitter:setParticleRotation(rotation: NumberRange)",
+        "notes": "Sets the particle rotation of the particles emitted."
+      },
+      {
+        "name": "setRotSpeed",
+        "signature": "particleEmitter:setRotSpeed(speed: NumberRange)",
+        "notes": "Sets the rotation speed of the particles emitted."
+      },
+      {
+        "name": "setLightInfluence",
+        "signature": "particleEmitter:setLightInfluence(influence: number)",
+        "notes": "Sets the light influence of the particles emitted."
+      },
+      {
+        "name": "setLightEmission",
+        "signature": "particleEmitter:setLightEmission(emission: number)",
+        "notes": "Sets the light emission of the particles emitted."
+      },
+      {
+        "name": "setSquash",
+        "signature": "particleEmitter:setSquash(squash: NumberSequence)",
+        "notes": "Sets the squash of the particles emitted."
+      },
+      {
+        "name": "setSpreadAngle",
+        "signature": "particleEmitter:setSpreadAngle(angle: Vector2)",
+        "notes": "Sets the spread angle of the particles emitted."
+      },
+      {
+        "name": "setTimeScale",
+        "signature": "particleEmitter:setTimeScale(timeScale: number)",
+        "notes": "Sets the time scale of the particles emitted."
+      },
+      {
+        "name": "setEnabled",
+        "signature": "particleEmitter:setEnabled(enabled: boolean)",
+        "notes": "Enables or disables the particle emitter."
+      },
+      {
+        "name": "setLockedToPart",
+        "signature": "particleEmitter:setLockedToPart(locked: boolean)",
+        "notes": "Sets the particle emission to be locked to the emission source, or whether the particles will linger around the position they were emitted if the emission source moves."
+      },
+      {
+        "name": "emit",
+        "signature": "particleEmitter:emit(amount: number | nil) Emits",
+        "notes": "the given amount of particles, otherwise defaults to the rate of the particle emitter."
+      },
+      {
+        "name": "clear",
+        "signature": "particleEmitter:clear() Clears",
+        "notes": "any currently emitted particles."
+      },
+      {
+        "name": "destroy",
+        "signature": "particleEmitter:destroy()",
+        "notes": "Destroys the particle emitter."
+      }
+    ]
+  },
+  "Part": {
+    "description": "Object returned by PartService.createPart().",
+    "functions": [
+      {
+        "name": "setPosition",
+        "signature": "part:setPosition(position: Vector3)",
+        "notes": "Sets the position of the part."
+      },
+      {
+        "name": "getPosition",
+        "signature": "part:getPosition(): Vector3",
+        "notes": "Returns the position of the part."
+      },
+      {
+        "name": "setRotation",
+        "signature": "part:setRotation(rotation: Vector3)",
+        "notes": "Sets the rotation of the part."
+      },
+      {
+        "name": "getRotation",
+        "signature": "part:getRotation(): Vector3",
+        "notes": "Returns the rotation of the part."
+      },
+      {
+        "name": "setCFrame",
+        "signature": "part:setCFrame(cframe: CFrame)",
+        "notes": "Sets the CFrame of the part."
+      },
+      {
+        "name": "getCFrame",
+        "signature": "part:getCFrame(): CFrame",
+        "notes": "Returns the CFrame of the part."
+      },
+      {
+        "name": "setSize",
+        "signature": "part:setSize(area: Vector3)",
+        "notes": "Sets the size of the part."
+      },
+      {
+        "name": "getSize",
+        "signature": "part:getSize(): Vector3",
+        "notes": "Returns the size of the part."
+      },
+      {
+        "name": "setCollidable",
+        "signature": "part:setCollidable(collidable: boolean)",
+        "notes": "Sets whether the part should collide with other models, blocks, and players. Defaults to true on creation."
+      },
+      {
+        "name": "setAnchored",
+        "signature": "part:setAnchored(anchored: boolean)",
+        "notes": "Sets whether the part should have physics applied to it. Defaults to true on creation."
+      },
+      {
+        "name": "setTransparency",
+        "signature": "part:setTransparency(transparency: number)",
+        "notes": "Sets the transparency of the part. Transparency ranges from 0 (opaque) to 1 (invisible)."
+      },
+      {
+        "name": "getTransparency",
+        "signature": "part:getTransparency(): number",
+        "notes": "Returns the transparency of the part. Transparency ranges from 0 (opaque) to 1 (invisible)."
+      },
+      {
+        "name": "destroy",
+        "signature": "part:destroy()",
+        "notes": "Destroys the part."
+      }
+    ],
+    "source_name": "Part | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/part",
+    "methods": [
+      {
+        "name": "setPosition",
+        "signature": "part:setPosition(position: Vector3)",
+        "notes": "Sets the position of the part."
+      },
+      {
+        "name": "getPosition",
+        "signature": "part:getPosition(): Vector3",
+        "notes": "Returns the position of the part."
+      },
+      {
+        "name": "setRotation",
+        "signature": "part:setRotation(rotation: Vector3)",
+        "notes": "Sets the rotation of the part."
+      },
+      {
+        "name": "getRotation",
+        "signature": "part:getRotation(): Vector3",
+        "notes": "Returns the rotation of the part."
+      },
+      {
+        "name": "setCFrame",
+        "signature": "part:setCFrame(cframe: CFrame)",
+        "notes": "Sets the CFrame of the part."
+      },
+      {
+        "name": "getCFrame",
+        "signature": "part:getCFrame(): CFrame",
+        "notes": "Returns the CFrame of the part."
+      },
+      {
+        "name": "setSize",
+        "signature": "part:setSize(area: Vector3)",
+        "notes": "Sets the size of the part."
+      },
+      {
+        "name": "getSize",
+        "signature": "part:getSize(): Vector3",
+        "notes": "Returns the size of the part."
+      },
+      {
+        "name": "setCollidable",
+        "signature": "part:setCollidable(collidable: boolean)",
+        "notes": "Sets whether the part should collide with other models, blocks, and players. Defaults to true on creation."
+      },
+      {
+        "name": "setAnchored",
+        "signature": "part:setAnchored(anchored: boolean)",
+        "notes": "Sets whether the part should have physics applied to it. Defaults to true on creation."
+      },
+      {
+        "name": "setTransparency",
+        "signature": "part:setTransparency(transparency: number)",
+        "notes": "Sets the transparency of the part. Transparency ranges from 0 (opaque) to 1 (invisible)."
+      },
+      {
+        "name": "getTransparency",
+        "signature": "part:getTransparency(): number",
+        "notes": "Returns the transparency of the part. Transparency ranges from 0 (opaque) to 1 (invisible)."
+      },
+      {
+        "name": "destroy",
+        "signature": "part:destroy()",
+        "notes": "Destroys the part."
+      }
+    ]
+  },
+  "Player": {
+    "description": "Represents a BedWars player.",
+    "parameters": [
+      {
+        "name": "name",
+        "type": "string",
+        "notes": "The player's Roblox username."
+      },
+      {
+        "name": "displayName",
+        "type": "string",
+        "notes": "The player's Roblox display name."
+      },
+      {
+        "name": "userId",
+        "type": "number",
+        "notes": "The player's Roblox user ID."
+      }
+    ],
+    "functions": [
+      {
+        "name": "getEntity",
+        "signature": "player:getEntity(): Entity | nil",
+        "notes": "Returns the entity this player is controlling if one is active."
+      },
+      {
+        "name": "setScale",
+        "signature": "player:setScale(scale: number)",
+        "notes": "Resize player by provided multiplier. For example a scale of 2 would make the player twice as big (default player scale is 1)."
+      },
+      {
+        "name": "registerSpeedMultiplier",
+        "signature": "player:registerSpeedMultiplier(id: string, multiplier: number)",
+        "notes": "Registers a speed multiplier for the player. A multiplier of 1 is equal to normal speed, less than 1 is slower than normal speed, and greater than 1 is faster than normal speed. A multiplier value of 2 would be equivalent to double the normal speed of the player. The id parameter can be any string you wish to use to reference the multiplier."
+      },
+      {
+        "name": "registerAdditionalAirJumps",
+        "signature": "player:registerAdditionalAirJumps(id: string, count: number)",
+        "notes": "Registers additional air jumps for the player. The default air jump count is 0. Air jumps are jumps performed while already in the air. The id parameter can be any string you wish to use to reference the registered air jump change."
+      },
+      {
+        "name": "registerJumpHeightMultiplier",
+        "signature": "player:registerJumpHeightMultiplier(id: string, multiplier: number)",
+        "notes": "Registers a jump height multiplier for the player. A multiplier of 1 is equal to normal height (2 block high jump), less than 1 is shorter than normal height, and greater than 1 is higher than normal height. A multiplier value of 2 would be equivalent to double the normal jump height of the player. The id parameter can be any string you wish to use to reference the multiplier."
+      },
+      {
+        "name": "removeSpeedMultiplier",
+        "signature": "player:removeSpeedMultiplier(id: string)",
+        "notes": "Removes the speed multiplier with the given id from the player."
+      },
+      {
+        "name": "removeAdditionalAirJumps",
+        "signature": "player:removeAdditionalAirJumps(id: string)",
+        "notes": "Removes the additional air jumps with the given id from the player."
+      },
+      {
+        "name": "removeJumpHeightMultiplier",
+        "signature": "player:removeJumpHeightMultiplier(id: string)",
+        "notes": "Removes the jump height multiplier with the given id from the player."
+      }
+    ],
+    "source_name": "Player | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/player",
+    "methods": [
+      {
+        "name": "getEntity",
+        "signature": "player:getEntity(): Entity | nil",
+        "notes": "Returns the entity this player is controlling if one is active."
+      },
+      {
+        "name": "setScale",
+        "signature": "player:setScale(scale: number)",
+        "notes": "Resize player by provided multiplier. For example a scale of 2 would make the player twice as big (default player scale is 1)."
+      },
+      {
+        "name": "registerSpeedMultiplier",
+        "signature": "player:registerSpeedMultiplier(id: string, multiplier: number)",
+        "notes": "Registers a speed multiplier for the player. A multiplier of 1 is equal to normal speed, less than 1 is slower than normal speed, and greater than 1 is faster than normal speed. A multiplier value of 2 would be equivalent to double the normal speed of the player. The id parameter can be any string you wish to use to reference the multiplier."
+      },
+      {
+        "name": "registerAdditionalAirJumps",
+        "signature": "player:registerAdditionalAirJumps(id: string, count: number)",
+        "notes": "Registers additional air jumps for the player. The default air jump count is 0. Air jumps are jumps performed while already in the air. The id parameter can be any string you wish to use to reference the registered air jump change."
+      },
+      {
+        "name": "registerJumpHeightMultiplier",
+        "signature": "player:registerJumpHeightMultiplier(id: string, multiplier: number)",
+        "notes": "Registers a jump height multiplier for the player. A multiplier of 1 is equal to normal height (2 block high jump), less than 1 is shorter than normal height, and greater than 1 is higher than normal height. A multiplier value of 2 would be equivalent to double the normal jump height of the player. The id parameter can be any string you wish to use to reference the multiplier."
+      },
+      {
+        "name": "removeSpeedMultiplier",
+        "signature": "player:removeSpeedMultiplier(id: string)",
+        "notes": "Removes the speed multiplier with the given id from the player."
+      },
+      {
+        "name": "removeAdditionalAirJumps",
+        "signature": "player:removeAdditionalAirJumps(id: string)",
+        "notes": "Removes the additional air jumps with the given id from the player."
+      },
+      {
+        "name": "removeJumpHeightMultiplier",
+        "signature": "player:removeJumpHeightMultiplier(id: string)",
+        "notes": "Removes the jump height multiplier with the given id from the player."
+      }
+    ],
+    "examples": [
+      {
+        "description": "Set all player speeds to 2 times normal speed for 30 seconds",
+        "code": "-- Set all player speeds to 2 times normal speed for 30 seconds\n-- Set all players to have 1 air jump\nfor i, player in ipairs(PlayerService.getPlayers()) do \n    player:registerSpeedMultiplier(\"speed-boost\", 2)\n    player:registerAdditionalAirJumps(\"bounce\", 1)\n    task.wait(30)\n    player:removeSpeedMultiplier(\"speed-boost\")\nend"
+      }
+    ]
+  },
+  "Prompt": {
+    "description": "Object returned by PromptService.createPrompt().",
+    "functions": [
+      {
+        "name": "onActivated",
+        "signature": "prompt:onActivated(function: (player: Player) => nil)",
+        "notes": "Registers a function to run when the prompt is activated."
+      },
+      {
+        "name": "setObjectText",
+        "signature": "prompt:setObjectText(objectText: string)",
+        "notes": "Sets the object text. Example: Door."
+      },
+      {
+        "name": "setActionText",
+        "signature": "prompt:setActionText(actionText: string)",
+        "notes": "Sets the action text. Example: Open."
+      },
+      {
+        "name": "setActivationDistance",
+        "signature": "prompt:setActivationDistance(activationDistance: number)",
+        "notes": "Sets the activation distance in studs. Only players within this distance can use the prompt."
+      },
+      {
+        "name": "setHoldDuration",
+        "signature": "prompt:setHoldDuration(holdDurationSec: number)",
+        "notes": "Sets the duration (in seconds) of hold time needed to activate the prompt."
+      },
+      {
+        "name": "setKeyCode",
+        "signature": "prompt:setKeyCode(keyCode: KeyCode)",
+        "notes": "Specifies the key code used to activate the prompt. Written as KeyCode.X ."
+      },
+      {
+        "name": "setPosition",
+        "signature": "prompt:setPosition(position: Vector3)",
+        "notes": "Sets the position of the prompt."
+      },
+      {
+        "name": "getPosition",
+        "signature": "prompt:getPosition(): Vector3",
+        "notes": "Returns the position of the prompt."
+      },
+      {
+        "name": "destroy",
+        "signature": "prompt:destroy()",
+        "notes": "Destroys the prompt."
+      }
+    ],
+    "source_name": "Prompt | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/prompt",
+    "methods": [
+      {
+        "name": "onActivated",
+        "signature": "prompt:onActivated(function: (player: Player) => nil)",
+        "notes": "Registers a function to run when the prompt is activated."
+      },
+      {
+        "name": "setObjectText",
+        "signature": "prompt:setObjectText(objectText: string)",
+        "notes": "Sets the object text. Example: Door."
+      },
+      {
+        "name": "setActionText",
+        "signature": "prompt:setActionText(actionText: string)",
+        "notes": "Sets the action text. Example: Open."
+      },
+      {
+        "name": "setActivationDistance",
+        "signature": "prompt:setActivationDistance(activationDistance: number)",
+        "notes": "Sets the activation distance in studs. Only players within this distance can use the prompt."
+      },
+      {
+        "name": "setHoldDuration",
+        "signature": "prompt:setHoldDuration(holdDurationSec: number)",
+        "notes": "Sets the duration (in seconds) of hold time needed to activate the prompt."
+      },
+      {
+        "name": "setKeyCode",
+        "signature": "prompt:setKeyCode(keyCode: KeyCode)",
+        "notes": "Specifies the key code used to activate the prompt. Written as KeyCode.X ."
+      },
+      {
+        "name": "setPosition",
+        "signature": "prompt:setPosition(position: Vector3)",
+        "notes": "Sets the position of the prompt."
+      },
+      {
+        "name": "getPosition",
+        "signature": "prompt:getPosition(): Vector3",
+        "notes": "Returns the position of the prompt."
+      },
+      {
+        "name": "destroy",
+        "signature": "prompt:destroy()",
+        "notes": "Destroys the prompt."
+      }
+    ]
+  },
+  "ProgressBar": {
+    "description": "Object returned by UIService.createProgressBar().",
+    "functions": [
+      {
+        "name": "setColor",
+        "signature": "progressBar:setColor(color: Color3)",
+        "notes": "Sets the fill color of the progress bar."
+      },
+      {
+        "name": "setMaxProgress",
+        "signature": "progressBar:setMaxProgress(max: number)",
+        "notes": "Sets the max progress for the progress bar."
+      },
+      {
+        "name": "setText",
+        "signature": "progressBar:setText(text: string)",
+        "notes": "Sets a text label on the progress bar."
+      },
+      {
+        "name": "get",
+        "signature": "progressBar:get(): number",
+        "notes": "Returns the current progress of the progress bar. For example, a progress bar that has 1 unit of progress with a maximum of 5 units would return 1 ."
+      },
+      {
+        "name": "add",
+        "signature": "progressBar:add(amount: number)",
+        "notes": "Adds the given amount to the current progress."
+      },
+      {
+        "name": "sub",
+        "signature": "progressBar:sub(amount: number)",
+        "notes": "Subtracts the given amount from the current progress."
+      },
+      {
+        "name": "set",
+        "signature": "progressBar:set(amount: number)",
+        "notes": "Sets the progress to the given amount."
+      },
+      {
+        "name": "addPlayer",
+        "signature": "progressBar:addPlayer(player: Player)",
+        "notes": "Adds a player to the list of players who can view this progress bar."
+      },
+      {
+        "name": "removePlayer",
+        "signature": "progressBar:removePlayer(player: Player)",
+        "notes": "Removes a player from the list of players who can view this progress bar."
+      },
+      {
+        "name": "destroy",
+        "signature": "progressBar:destroy()",
+        "notes": "Removes the progress bar."
+      }
+    ],
+    "source_name": "ProgressBar | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/progressbar",
+    "methods": [
+      {
+        "name": "setColor",
+        "signature": "progressBar:setColor(color: Color3)",
+        "notes": "Sets the fill color of the progress bar."
+      },
+      {
+        "name": "setMaxProgress",
+        "signature": "progressBar:setMaxProgress(max: number)",
+        "notes": "Sets the max progress for the progress bar."
+      },
+      {
+        "name": "setText",
+        "signature": "progressBar:setText(text: string)",
+        "notes": "Sets a text label on the progress bar."
+      },
+      {
+        "name": "get",
+        "signature": "progressBar:get(): number",
+        "notes": "Returns the current progress of the progress bar. For example, a progress bar that has 1 unit of progress with a maximum of 5 units would return 1 ."
+      },
+      {
+        "name": "add",
+        "signature": "progressBar:add(amount: number)",
+        "notes": "Adds the given amount to the current progress."
+      },
+      {
+        "name": "sub",
+        "signature": "progressBar:sub(amount: number)",
+        "notes": "Subtracts the given amount from the current progress."
+      },
+      {
+        "name": "set",
+        "signature": "progressBar:set(amount: number)",
+        "notes": "Sets the progress to the given amount."
+      },
+      {
+        "name": "addPlayer",
+        "signature": "progressBar:addPlayer(player: Player)",
+        "notes": "Adds a player to the list of players who can view this progress bar."
+      },
+      {
+        "name": "removePlayer",
+        "signature": "progressBar:removePlayer(player: Player)",
+        "notes": "Removes a player from the list of players who can view this progress bar."
+      },
+      {
+        "name": "destroy",
+        "signature": "progressBar:destroy()",
+        "notes": "Removes the progress bar."
+      }
+    ]
+  },
+  "TextLabel": {
+    "description": "Object returned by UIService.createTextLabel().",
+    "functions": [
+      {
+        "name": "setText",
+        "signature": "textLabel:setText(text: string)",
+        "notes": "Sets the font of the text."
+      },
+      {
+        "name": "setFont",
+        "signature": "textLabel:setFont(font: Font)",
+        "notes": "Sets the font of the text from the Roblox Enum for Fonts . Written as Font.Arial ."
+      },
+      {
+        "name": "setPosition",
+        "signature": "textLabel:setPosition(position: Vector3)",
+        "notes": "Sets the position of the label."
+      },
+      {
+        "name": "getPosition",
+        "signature": "textLabel:getPosition(): Vector3",
+        "notes": "Returns the position of the label."
+      },
+      {
+        "name": "setTextColor",
+        "signature": "textLabel:setTextColor(color: Color3)",
+        "notes": "Sets the color of the text on the label."
+      },
+      {
+        "name": "setBackgroundColor",
+        "signature": "textLabel:setBackgroundColor(color: Color3)",
+        "notes": "Sets the color of the background of the label."
+      },
+      {
+        "name": "setTextTransparency",
+        "signature": "textLabel:setTextTransparency(transparency: number)",
+        "notes": "Sets the transparency of the text on the label. Transparency ranges from 0 (opaque) to 1 (invisible)."
+      },
+      {
+        "name": "setBackgroundTransparency",
+        "signature": "textLabel:setBackgroundTransparency(transparency: number)",
+        "notes": "Sets the transparency of the background of the label. Transparency ranges from 0 (opaque) to 1 (invisible)."
+      },
+      {
+        "name": "setSize",
+        "signature": "textLabel:setSize(size: UDim2)",
+        "notes": "Sets the size of the label."
+      },
+      {
+        "name": "setSize",
+        "signature": "textLabel:setSize(): UDim2",
+        "notes": "Returns the size of the label."
+      },
+      {
+        "name": "setMaxDistance",
+        "signature": "textLabel:setMaxDistance(distance: number)",
+        "notes": "Sets the max distance at which the label can still be seen."
+      },
+      {
+        "name": "destroy",
+        "signature": "textLabel:destroy()",
+        "notes": "Removes the label."
+      }
+    ],
+    "source_name": "TextLabel | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/textlabel",
+    "methods": [
+      {
+        "name": "setText",
+        "signature": "textLabel:setText(text: string)",
+        "notes": "Sets the font of the text."
+      },
+      {
+        "name": "setFont",
+        "signature": "textLabel:setFont(font: Font)",
+        "notes": "Sets the font of the text from the Roblox Enum for Fonts . Written as Font.Arial ."
+      },
+      {
+        "name": "setPosition",
+        "signature": "textLabel:setPosition(position: Vector3)",
+        "notes": "Sets the position of the label."
+      },
+      {
+        "name": "getPosition",
+        "signature": "textLabel:getPosition(): Vector3",
+        "notes": "Returns the position of the label."
+      },
+      {
+        "name": "setTextColor",
+        "signature": "textLabel:setTextColor(color: Color3)",
+        "notes": "Sets the color of the text on the label."
+      },
+      {
+        "name": "setBackgroundColor",
+        "signature": "textLabel:setBackgroundColor(color: Color3)",
+        "notes": "Sets the color of the background of the label."
+      },
+      {
+        "name": "setTextTransparency",
+        "signature": "textLabel:setTextTransparency(transparency: number)",
+        "notes": "Sets the transparency of the text on the label. Transparency ranges from 0 (opaque) to 1 (invisible)."
+      },
+      {
+        "name": "setBackgroundTransparency",
+        "signature": "textLabel:setBackgroundTransparency(transparency: number)",
+        "notes": "Sets the transparency of the background of the label. Transparency ranges from 0 (opaque) to 1 (invisible)."
+      },
+      {
+        "name": "setSize",
+        "signature": "textLabel:setSize(size: UDim2)",
+        "notes": "Sets the size of the label."
+      },
+      {
+        "name": "setSize",
+        "signature": "textLabel:setSize(): UDim2",
+        "notes": "Returns the size of the label."
+      },
+      {
+        "name": "setMaxDistance",
+        "signature": "textLabel:setMaxDistance(distance: number)",
+        "notes": "Sets the max distance at which the label can still be seen."
+      },
+      {
+        "name": "destroy",
+        "signature": "textLabel:destroy()",
+        "notes": "Removes the label."
+      }
+    ]
+  },
+  "Team": {
+    "description": "Represents a BedWars team.",
+    "functions": [
+      {
+        "name": "getInGamePlayers",
+        "signature": "team:getInGamePlayers(): Player[]",
+        "notes": "Returns team members that are actively in game (NOT including spectators)."
+      }
+    ],
+    "source_name": "Team | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/objects/team",
+    "parameters": [
+      {
+        "name": "name",
+        "type": "string",
+        "notes": "Display name of the team, such as Red."
+      },
+      {
+        "name": "id",
+        "type": "string",
+        "notes": "Identifier of the team, such as 3."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getInGamePlayers",
+        "signature": "team:getInGamePlayers(): Player[]",
+        "notes": "Returns team members that are actively in game (NOT including spectators)."
+      }
+    ]
+  }
+}

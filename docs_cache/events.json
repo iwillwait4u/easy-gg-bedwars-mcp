@@ -1,0 +1,807 @@
+{
+  "BeforeProjectileLaunched": {
+    "description": "Fires before a projectile is launched, allowing you to cancel the event.",
+    "callback": "Events.BeforeProjectileLaunched(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "shooter",
+        "type": "Entity | nil",
+        "notes": "The entity that launched the projectile (may not exist)."
+      },
+      {
+        "name": "projectileType",
+        "type": "ProjectileType",
+        "notes": "The type of projectile that hit."
+      },
+      {
+        "name": "position",
+        "type": "Vector3",
+        "notes": "The position from which the projectile was launched."
+      },
+      {
+        "name": "velocity",
+        "type": "Vector3",
+        "notes": "The velocity of the projectile when launched."
+      },
+      {
+        "name": "sourceItemType",
+        "type": "ItemType | nil",
+        "notes": "The type of item from which the projectile was launched, if the projectile was directly fired from the item."
+      },
+      {
+        "name": "cancelled",
+        "type": "bool",
+        "notes": "If set to true, the projectile launch will be cancelled.",
+        "modifiable": true
+      }
+    ],
+    "source_name": "BeforeProjectileLaunched | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/beforeprojectilelaunched",
+    "examples": [
+      {
+        "description": "Cancel all telepearl throws",
+        "code": "-- Cancel all telepearl throws\nEvents.BeforeProjectileLaunched(function(event)\n    if (event.shooter == nil) then\n        return\n    end\n    \n    if (event.projectileType == \"telepearl\") then\n       event.cancelled = true\n    end\nend)"
+      }
+    ]
+  },
+  "BlockPlace": {
+    "description": "Fires when a Player places a block",
+    "callback": "Events.BlockPlace(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player | nil",
+        "notes": "Player placing the block (if placed by a player)."
+      },
+      {
+        "name": "position",
+        "type": "Vector3",
+        "notes": "Position in the world the block is being placed at."
+      },
+      {
+        "name": "blockType",
+        "type": "ItemType",
+        "notes": "The type of the block being placed."
+      },
+      {
+        "name": "cancelled",
+        "type": "bool",
+        "notes": "If set to true, the block place will be denied.",
+        "modifiable": true
+      }
+    ],
+    "examples": [
+      {
+        "description": "Fortify all blocks placed by players to Stone Brick",
+        "code": "-- Fortify all blocks placed by players to Stone Brick\nEvents.BlockPlace(function(event)\n    -- Only fortify player blocks\n    if (not event.player) then\n        return\n    end\n    -- Only replace wool blocks\n    if not string.includes(event.blockType, \"wool\") then\n        return\n    end\n    \n    \n    BlockService.placeBlock(ItemType.STONE_BRICK, event.position)\n    SoundService.playSound(Sound.FORTIFY_BLOCK, event.position)\n    event.cancelled = true\nend)"
+      }
+    ],
+    "source_name": "BlockPlace | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/blockplace"
+  },
+  "BlockBreak": {
+    "description": "Fires when a Player breaks a block",
+    "callback": "Events.BlockBreak(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player | nil",
+        "notes": "Player who broke the block."
+      },
+      {
+        "name": "position",
+        "type": "Vector3",
+        "notes": "Position in the world the block was broken at."
+      },
+      {
+        "name": "blockType",
+        "type": "ItemType",
+        "notes": "The type of the block being broken."
+      }
+    ],
+    "source_name": "BlockBreak | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/blockbreak",
+    "examples": [
+      {
+        "description": "Only consider ceramic block breaks",
+        "code": "Events.BlockBreak(function(event)\n    if (not event.player) then\n        return\n    end\n\n    -- Only consider ceramic block breaks\n    if (event.blockType == ItemType.BLASTPROOF_CERAMIC) then\n        InventoryService.giveItem(event.player, ItemType.FIREBALL, 1, true)\n    end\nend)"
+      }
+    ]
+  },
+  "BedAlarmTriggered": {
+    "description": "Fires when a bed alarm is triggered.",
+    "callback": "Events.BedAlarmTriggered(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "intruder",
+        "type": "Player",
+        "notes": "The intruder player that triggered the bed alarm."
+      },
+      {
+        "name": "team",
+        "type": "Team",
+        "notes": "The team whose bed alarm went off."
+      }
+    ],
+    "source_name": "BedAlarmTriggered | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/bedalarmtriggered",
+    "examples": [
+      {
+        "description": "Send out a broadcast to the game server when a bed alarm is triggered",
+        "code": "-- Send out a broadcast to the game server when a bed alarm is triggered\nEvents.BedAlarmTriggered(function(event)\n    local alert = event.intruder.displayName .. \" invaded \" .. event.team.name .. \"'s base!\"\n    MessageService.broadcast(alert)\nend)"
+      }
+    ]
+  },
+  "ConsumeItem": {
+    "description": "Fires when an item is consumed.",
+    "callback": "Events.ConsumeItem(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player that consumed the item."
+      },
+      {
+        "name": "itemType",
+        "type": "ItemType",
+        "notes": "The item that was consumed by the player."
+      },
+      {
+        "name": "cancelled",
+        "type": "bool",
+        "notes": "If set to true the item consume will be cancelled.",
+        "modifiable": true
+      }
+    ],
+    "source_name": "ConsumeItem | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/consumeitem",
+    "examples": [
+      {
+        "description": "Make a player jump twice as high every time they eat a pie item",
+        "code": "-- Make a player jump twice as high every time they eat a pie item\nEvents.ConsumeItem(function(event)\n    if (event.item == ItemType.PIE) then\n        event.player:registerJumpHeightMultiplier(\"pie_jumps\", 2)\n    end\nend)"
+      }
+    ]
+  },
+  "Enchant": {
+    "description": "Fires when a Player researches an Enchant.",
+    "callback": "Events.Enchant(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player who researched the enchant."
+      },
+      {
+        "name": "enchant",
+        "type": "EnchantType",
+        "notes": "Type of enchant researched by the player."
+      },
+      {
+        "name": "cancelled",
+        "type": "bool",
+        "notes": "If set to true, the enchant research will be cancelled.",
+        "modifiable": true
+      }
+    ],
+    "source_name": "Enchant | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/enchant",
+    "examples": [
+      {
+        "description": "Play the Learn Fire sound if a player receives a Fire 3 Enchant",
+        "code": "Events.Enchant(function(event)\n    -- Play the Learn Fire sound if a player receives a Fire 3 Enchant\n    if (event.enchant == EnchantType.FIRE_3) then\n         SoundService.playSound(Sound.WHIM_LEARN_FIRE)\n    end\nend)"
+      }
+    ]
+  },
+  "EntityDamage": {
+    "description": "Fires when an Entity is damaged",
+    "callback": "Events.EntityDamage(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "entity",
+        "type": "Entity",
+        "notes": "The entity getting damaged."
+      },
+      {
+        "name": "fromEntity",
+        "type": "Entity | nil",
+        "notes": "The attacker (if one exists)."
+      },
+      {
+        "name": "damage",
+        "type": "number",
+        "notes": "Amount of damage that will be dealt.",
+        "modifiable": true
+      },
+      {
+        "name": "knockback",
+        "type": "Knockback",
+        "notes": "Amount of knockback that will be applied.",
+        "modifiable": true
+      },
+      {
+        "name": "cancelled",
+        "type": "bool",
+        "notes": "If set to true the damage will be cancelled.",
+        "modifiable": true
+      }
+    ],
+    "examples": [
+      {
+        "description": "Double all damage in the game after 15 minutes",
+        "code": "Events.EntityDamage(function(event)\n    local matchDurationSec = MatchService.getMatchDurationSec()\n    -- Double all damage in the game after 15 minutes\n    if (matchDurationSec > 15 * 60) then\n        event.damage = event.damage * 2\n    end\n    \n    -- Disable damage in first 45s of the game\n    if (matchDurationSec < 45) then\n        event.cancelled = true;\n    end\nend)"
+      }
+    ],
+    "source_name": "EntityDamage | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/entitydamage"
+  },
+  "EntityDeath": {
+    "description": "Fires when an Entity is killed",
+    "callback": "Events.EntityDeath(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "entity",
+        "type": "Entity",
+        "notes": "The killed entity."
+      },
+      {
+        "name": "killer",
+        "type": "Entity | nil",
+        "notes": "The killer (or nil if not killed by anyone)."
+      },
+      {
+        "name": "assists",
+        "type": "Entity []",
+        "notes": "List of entities who damaged the victim within the last 15s."
+      },
+      {
+        "name": "finalKill",
+        "type": "bool",
+        "notes": "True if the killed entity is going to be eliminated after this kill."
+      }
+    ],
+    "source_name": "EntityDeath | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/entitydeath",
+    "examples": [
+      {
+        "description": "Give players 10 emeralds when they eliminate another player",
+        "code": "-- Give players 10 emeralds when they eliminate another player\nEvents.EntityDeath(function(event)\n    -- Only give payout if this is a player entity\n    if (event.entity:getPlayer() == nil) then\n        return\n    end\n    \n    -- Only give payout if this is an elimination\n    if not event.finalKill then\n        return\n    end\n\n    -- Pay all assisting players 10 emeralds\n    for i, entity in ipairs(event.assists) do\n        if not entity:getPlayer() then\n            continue\n        end\n        \n        InventoryService.giveItem(entity:getPlayer(), ItemType.EMERALD, 10, true)\n    end\nend)"
+      }
+    ]
+  },
+  "EntitySpawn": {
+    "description": "Fires when an Entity spawns",
+    "callback": "Events.EntitySpawn(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "entity",
+        "type": "Entity",
+        "notes": "The spawning entity."
+      }
+    ],
+    "source_name": "EntitySpawn | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/entityspawn",
+    "examples": [
+      {
+        "description": "Make all entities have only 1 health",
+        "code": "-- Make all entities have only 1 health\nEvents.EntitySpawn(function(event)\n    event.entity:setMaxHealth(1)\nend)"
+      }
+    ]
+  },
+  "Forged": {
+    "description": "Fires when a Player upgrades an item in the Forge.",
+    "callback": "Events.Forged(function(event) ... end)",
+    "parameters": [],
+    "source_name": "Forged | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/forged",
+    "warnings": [
+      "Official docs say this event is no longer compatible with the latest version of the game and should not be used.",
+      "The official page does not document parameters or examples for this event."
+    ]
+  },
+  "InventoryItemAdded": {
+    "description": "Fires when a new item is added to a player's inventory.",
+    "callback": "Events.InventoryItemAdded(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player who received a new item."
+      },
+      {
+        "name": "item",
+        "type": "ItemType",
+        "notes": "The type of item received by the player."
+      },
+      {
+        "name": "amount",
+        "type": "number",
+        "notes": "The amount of the item received by the player."
+      }
+    ],
+    "source_name": "InventoryItemAdded | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/inventoryitemadded",
+    "examples": [
+      {
+        "description": "Sends a notification to a player that receives the Laser Sword item",
+        "code": "Events.InventoryItemAdded(function(event)\n    -- Sends a notification to a player that receives the Laser Sword item\n    if (event.item == ItemType.LASER_SWORD) then\n        MessageService.sendInfo(event.player, \"You have unlocked the power of the force!\")\n    end\nend)"
+      }
+    ]
+  },
+  "ItemPurchase": {
+    "description": "Fires when an item is purchased in the Item Shop.",
+    "callback": "Events.ItemPurchase(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player who received a new item."
+      },
+      {
+        "name": "itemType",
+        "type": "ItemType",
+        "notes": "The type of item received by the player."
+      },
+      {
+        "name": "amount",
+        "type": "number",
+        "notes": "The amount of the item received by the player."
+      },
+      {
+        "name": "costItem",
+        "type": "ItemType",
+        "notes": "The type of item used to purchase the specified item."
+      },
+      {
+        "name": "price",
+        "type": "number",
+        "notes": "The amount of the cost item used to purchase the specified item."
+      }
+    ],
+    "source_name": "ItemPurchase | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/itempurchase",
+    "examples": [
+      {
+        "description": "Refund 50% of all Iron purchases in the shop",
+        "code": "-- Refund 50% of all Iron purchases in the shop\nEvents.ItemPurchase(function(event)\n    -- Only refund the player if the resource used to purchase the item is Iron\n    if (event.costItem == ItemType.IRON) then\n        -- Round 50% of the price to the closest smaller integer\n        local refund = math.floor(event.price * 0.5);\n        InventoryService.giveItem(event.player, ItemType.IRON, refund, true)\n    end\nend)"
+      }
+    ]
+  },
+  "MatchStart": {
+    "description": "Fires when the match starts",
+    "callback": "Events.MatchStart(function(event) ... end)",
+    "parameters": [],
+    "source_name": "MatchStart | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/matchstart",
+    "examples": [
+      {
+        "description": "Play halloween music at the start of the game",
+        "code": "-- Play halloween music at the start of the game\nEvents.MatchStart(function(event)\n    SoundService.playSound(Sound.HALLOWEEN_2022_BOSS_MUSIC)\nend)"
+      }
+    ],
+    "notes": [
+      "The official page does not document event fields for MatchStart; use the callback as Events.MatchStart(function(event) ... end)."
+    ]
+  },
+  "PlayerChatted": {
+    "description": "Fires when a player sends a chat message",
+    "callback": "Events.PlayerChatted(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player that sent the message."
+      },
+      {
+        "name": "message",
+        "type": "string",
+        "notes": "The message sent by the player."
+      }
+    ],
+    "source_name": "PlayerChatted | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/playerchatted",
+    "examples": [
+      {
+        "description": "Add \"/rain {item}\" command that rains a resource on all players",
+        "code": "-- Add \"/rain {item}\" command that rains a resource on all players\nEvents.PlayerChatted(function(event)\n    -- Split out command from args\n    local commandArgs = string.split(event.message, \" \")\n    \n    local command = string.lower(commandArgs[1])\n    \n    -- Check that command is \"/rain\"\n    if string.lower(command) ~= \"/rain\" then\n        return\n    end\n    \n    -- Verify message at least has 2 arguments (command & item type)\n    if #commandArgs < 2 then\n        MessageService.sendInfo(event.player, 'Format: /rain <Item Type>')\n        return\n    end\n    local itemType = string.lower(commandArgs[2])\n    \n    -- Check that item exists\n    if not ItemType[itemType] then\n        MessageService.sendInfo(event.player, 'No item exists named ' .. itemType)\n        return\n    end\n    \n    local numDrops = 25\n    task.spawn(function()\n        for i=1,numDrops,1 do\n            for i,player in ipairs(PlayerService.getPlayers()) do\n                local entity = player:getEntity()\n                if not entity then\n                    continue\n                end\n                \n                local pos = entity:getPosition()\n                pos = pos + Vector3.new(math.random(-5, 5), 8, math.random(-5, 5))\n                ItemService.dropItem(itemType, pos)\n            end\n            task.wait(0.2)\n        end\n    end)\nend)"
+      }
+    ]
+  },
+  "PlayerAdded": {
+    "description": "Fires when a player joins the game server.",
+    "callback": "Events.PlayerAdded(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player that joined the game server."
+      }
+    ],
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "Events.PlayerAdded(function (event)\n    ChatService.sendMessage(event.player.name .. \" joined the game!\")\nend)\n\nEvents.PlayerRemoving(function (event)\n    ChatService.sendMessage(event.player.name .. \" left the game.\")\nend)"
+      }
+    ],
+    "source_name": "PlayerAdded | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/playeradded"
+  },
+  "PlayerRemoving": {
+    "description": "Fires when a player is about to leave the game server.",
+    "callback": "Events.PlayerRemoving(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player that is about to leave the game server."
+      }
+    ],
+    "source_name": "PlayerRemoving | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/playerremoving",
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "Events.PlayerAdded(function (event)\n    ChatService.sendMessage(event.player.displayName .. \" joined the game!\")\nend)\n\nEvents.PlayerRemoving(function (event)\n    ChatService.sendMessage(event.player.displayName .. \" left the game.\")\nend)"
+      }
+    ]
+  },
+  "PlayerDropItem": {
+    "description": "Fires when a player drops an item onto the ground.",
+    "callback": "Events.PlayerDropItem(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player that is dropping the item."
+      },
+      {
+        "name": "itemType",
+        "type": "ItemType",
+        "notes": "The type of item being dropped by the player."
+      },
+      {
+        "name": "amount",
+        "type": "number",
+        "notes": "The amount of the item being dropped by the player."
+      },
+      {
+        "name": "cancelled",
+        "type": "bool",
+        "notes": "If set to true, the item drop event will be cancelled.",
+        "modifiable": true
+      }
+    ],
+    "source_name": "PlayerDropItem | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/playerdropitem",
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "Events.PlayerDropItem(function(event)\n    if (event.itemType == ItemType.TENNIS_BALL) then\n        event.cancelled = true\n        MessageService.sendInfo(event.player, \"Be more careful! Those can explode!\")\n    end\nend)"
+      }
+    ]
+  },
+  "PlayerPickupItem": {
+    "description": "Fires when a player collects an item from the ground.",
+    "callback": "Events.PlayerPickupItem(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player that is picking up the item."
+      },
+      {
+        "name": "itemType",
+        "type": "ItemType",
+        "notes": "The type of item that is being picked up by the player."
+      },
+      {
+        "name": "amount",
+        "type": "number",
+        "notes": "The amount of the item that is being picked up by the player."
+      },
+      {
+        "name": "cancelled",
+        "type": "bool",
+        "notes": "If set to true, the item pickup event will be cancelled.",
+        "modifiable": true
+      }
+    ],
+    "source_name": "PlayerPickupItem | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/playerpickupitem",
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "Events.PlayerPickupItem(function(event)\n    if (event.player:getEntity() == nil) then\n        return\n    end\n    if (event.itemType == ItemType.GLITCH_TRUMPET) then\n        EntityService.spawnKitEntity(KitType.MELODY, event.player:getEntity():getPosition())\n        AnnouncementService.sendAnnouncement(\"Let's jam!\")\n    end\nend)"
+      }
+    ]
+  },
+  "ProjectileLaunched": {
+    "description": "Fires when a projectile is launched.",
+    "callback": "Events.ProjectileLaunched(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "shooter",
+        "type": "Entity | nil",
+        "notes": "The entity that launched the projectile (may not exist)."
+      },
+      {
+        "name": "projectileType",
+        "type": "ProjectileType",
+        "notes": "The type of projectile that hit."
+      },
+      {
+        "name": "position",
+        "type": "Vector3",
+        "notes": "The position from which the projectile was launched."
+      },
+      {
+        "name": "velocity",
+        "type": "Vector3",
+        "notes": "The velocity of the projectile when launched."
+      }
+    ],
+    "source_name": "ProjectileLaunched | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/projectilelaunched",
+    "examples": [
+      {
+        "description": "Make the shooting player burn for 5 seconds when they launch a fireball",
+        "code": "-- Make the shooting player burn for 5 seconds when they launch a fireball\nEvents.ProjectileLaunched(function(event)\n    if (event.shooter == nil) then\n        return\n    end\n    \n    if (event.projectileType == \"fireball\") then\n       StatusEffectService.giveEffect(event.shooterEntity, StatusEffectType.BURN, 5)\n    end\nend)"
+      }
+    ]
+  },
+  "ProjectileHit": {
+    "description": "Fires when a launched projectile hits something (such as a block or entity)",
+    "callback": "Events.ProjectileHit(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "shooter",
+        "type": "Entity | nil",
+        "notes": "The entity that launched the projectile (may not exist)."
+      },
+      {
+        "name": "projectileType",
+        "type": "ProjectileType",
+        "notes": "The type of projectile that hit."
+      },
+      {
+        "name": "position",
+        "type": "Vector3",
+        "notes": "The position that the projectile hit."
+      },
+      {
+        "name": "hitEntity",
+        "type": "Entity | nil",
+        "notes": "The entity that was hit by the projectile (may not exist)."
+      },
+      {
+        "name": "cancelled",
+        "type": "bool",
+        "notes": "If set to true, the projectile hit will be cancelled.",
+        "modifiable": true
+      }
+    ],
+    "source_name": "ProjectileHit | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/projectilehit",
+    "examples": [
+      {
+        "description": "Only continue if the projectile that hit was Whim's nature spell",
+        "code": "Events.ProjectileHit(function(event)\n    -- Only continue if the projectile that hit was Whim's nature spell\n    if (event.projectileType == \"mage_spell_nature\") then\n        local blockAt = BlockService.getBlockAt(event.position)\n        if (blockAt.blockType == ItemType.DIRT) then\n            BlockService.placeBlock(ItemType.GRASS, event.position)\n            ModelService.createModel(ModelType.DAISY, blockAt.position + Vector3.new(0,2.5,0))\n        end\n    end\nend)"
+      }
+    ]
+  },
+  "StatusEffectAdded": {
+    "description": "Fires when a Status Effect is added to an Entity",
+    "callback": "Events.StatusEffectAdded(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "entity",
+        "type": "Entity",
+        "notes": "The entity that received the status effect."
+      },
+      {
+        "name": "statusEffect",
+        "type": "StatusEffectType",
+        "notes": "The type of status effect that was added to the entity."
+      }
+    ],
+    "source_name": "StatusEffectAdded | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/statuseffectadded",
+    "examples": [
+      {
+        "description": "Give the player a knockback baguette",
+        "code": "Events.StatusEffectAdded(function(event)\n    if (event.statusEffect == StatusEffectType.NO_KNOCKBACK) then\n        local player = event.entity:getPlayer()\n        if (player == nil) then\n            return\n        end\n        -- Give the player a knockback baguette\n        InventoryService.giveItem(player, ItemType.BAGUETTE, 1, true)\n    end\nend)"
+      }
+    ]
+  },
+  "StatusEffectRemoved": {
+    "description": "Fires when a Status Effect is removed from an Entity.",
+    "callback": "Events.StatusEffectRemoved(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "entity",
+        "type": "Entity",
+        "notes": "The entity that had the status effect removed from it."
+      },
+      {
+        "name": "statusEffect",
+        "type": "StatusEffectType",
+        "notes": "The type of status effect that was removed from the entity."
+      }
+    ],
+    "source_name": "StatusEffectRemoved | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/statuseffectremoved",
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "Events.StatusEffectRemoved(function(event)\n    if (event.statusEffect == StatusEffectType.TITANS_BLESSING) then\n        local player = event.entity:getPlayer()\n        if (player == nil) then\n            return\n        end\n        SoundService.playSoundForPlayer(player, SoundType.TITAN_IDLE_4)\n    end\nend)"
+      }
+    ]
+  },
+  "WeaponSwing": {
+    "description": "Fires when a weapon swings.",
+    "callback": "Events.WeaponSwing(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player that is swinging the weapon."
+      },
+      {
+        "name": "weapon",
+        "type": "ItemType",
+        "notes": "The ItemType of the weapon being swung."
+      },
+      {
+        "name": "hitEntity",
+        "type": "Entity | nil",
+        "notes": "The entity that was hit by the sword swing (may not exist if the swing missed)."
+      },
+      {
+        "name": "cancelled",
+        "type": "bool",
+        "notes": "If set to true, the weapon swing will be cancelled.",
+        "modifiable": true
+      }
+    ],
+    "source_name": "WeaponSwing | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/weaponswing",
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "Events.WeaponSwing(function(event)\n    if (event.weapon == ItemType.LASER_SWORD) then\n        ItemService.dropItem(ItemType.COSMIC_LUCKY_BLOCK, event.player:getEntity():getPosition())\n    end\nend)"
+      }
+    ]
+  },
+  "TeamUpgradePurchased": {
+    "description": "Fires when a Team Upgrade is purchased from the Team Upgrade Shop.",
+    "callback": "Events.TeamUpgradePurchased(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player who purchased the team upgrade."
+      },
+      {
+        "name": "team",
+        "type": "Team",
+        "notes": "The team that received the team upgrade."
+      },
+      {
+        "name": "upgrade",
+        "type": "TeamUpgradeType",
+        "notes": "The team upgrade that was purchased by the player."
+      }
+    ],
+    "source_name": "TeamUpgradePurchased | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/teamupgradepurchased",
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "upgrade"
+      },
+      {
+        "description": "Official docs example",
+        "code": "tier"
+      },
+      {
+        "description": "Official docs example",
+        "code": "MAGIC_I"
+      },
+      {
+        "description": "Official docs example",
+        "code": "MAGIC_II"
+      },
+      {
+        "description": "Only proceed if the MAGIC I upgrade was purchased",
+        "code": "Events.TeamUpgradePurchased(function(event)\n    -- Only proceed if the MAGIC I upgrade was purchased\n    if (event.upgrade == TeamUpgradeType.MAGIC_I) then\n       local teamPlayers = event.team:getInGamePlayers()\n       -- Loop over all players in the team that received the upgrade\n        for i, player in pairs(teamPlayers) do\n           -- Give each team player 5 telepearls\n           InventoryService.giveItem(player, ItemType.TELEPEARL, 5)\n        end\n    end\nend)"
+      }
+    ]
+  },
+  "TeamUpgradeEraPurchased": {
+    "description": "Fires when a Team Upgrade Era is purchased from the Team Upgrade Shop.",
+    "callback": "Events.TeamUpgradeEraPurchased(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player who purchased the team upgrade."
+      },
+      {
+        "name": "team",
+        "type": "Team",
+        "notes": "The team that received the team upgrade."
+      },
+      {
+        "name": "era",
+        "type": "TeamUpgradeEraType",
+        "notes": "The team upgrade era purchased by the player."
+      }
+    ],
+    "source_name": "TeamUpgradeEraPurchased | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/teamupgradeerapurchased",
+    "examples": [
+      {
+        "description": "Only proceed if the Diamond Era was purchased",
+        "code": "Events.TeamUpgradeEraPurchased(function(event)\n    -- Only proceed if the Diamond Era was purchased\n    if (event.upgrade == TeamUpgradeEraType.DIAMOND_ERA) then\n       local teamPlayers = event.team:getInGamePlayers()\n       -- Loop over all players in the team that received the upgrade\n        for i, player in pairs(teamPlayers) do\n           -- Give each team player a Diamond Scythe item\n           InventoryService.giveItem(player, ItemType.DIAMOND_SCYTHE, 1)\n        end\n    end\nend)"
+      }
+    ]
+  },
+  "Telepearled": {
+    "description": "Fires when a Player uses a telepearl.",
+    "callback": "Events.Telepearled(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "player",
+        "type": "Player",
+        "notes": "The player that threw the telepearl."
+      },
+      {
+        "name": "startPos",
+        "type": "Vector3",
+        "notes": "The position where the player threw the telepearl."
+      },
+      {
+        "name": "endPos",
+        "type": "Vector3",
+        "notes": "The position where the telepearl landed."
+      }
+    ],
+    "source_name": "Telepearled | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/telepearled",
+    "examples": [
+      {
+        "description": "When a player uses a telepearl, give them the Decay status effect",
+        "code": "-- When a player uses a telepearl, give them the Decay status effect\nEvents.Telepearled(function(event)\n    local entity = event.player:getEntity()\n    if (entity == nil) then\n        return\n    end\n    StatusEffectService.giveEffect(entity, StatusEffectType.DECAY)\nend)"
+      }
+    ]
+  },
+  "UseAbility": {
+    "description": "Fires when an entity uses an ability.",
+    "callback": "Events.UseAbility(function(event) ... end)",
+    "parameters": [
+      {
+        "name": "entity",
+        "type": "Entity",
+        "notes": "The entity that used the ability."
+      },
+      {
+        "name": "abilityName",
+        "type": "string | AbilityType",
+        "notes": "The ability used by the entity."
+      },
+      {
+        "name": "cancelled",
+        "type": "bool",
+        "notes": "If set to true, the ability use will be cancelled.",
+        "modifiable": true
+      }
+    ],
+    "source_name": "UseAbility | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/events/useability",
+    "examples": [
+      {
+        "description": "When a player attempts to Recall, turn them invisible for a few seconds",
+        "code": "-- When a player attempts to Recall, turn them invisible for a few seconds\nEvents.UseAbility(function(event)\n    if (event.abilityName == \"recall\") then\n        StatusEffectService.giveEffect(event.entity, StatusEffectType.INVISIBILITY, 6)\n    end\nend)"
+      }
+    ]
+  }
+}

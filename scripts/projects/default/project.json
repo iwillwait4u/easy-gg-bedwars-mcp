@@ -1,0 +1,11 @@
+{
+  "project_name": "default",
+  "sync_dir": "sync",
+  "drafts_dir": "drafts",
+  "prompt_file": "prompts/brief.md",
+  "sync_glob": "*.lua",
+  "notes": [
+    "Only files in sync/ are uploaded by sync_bedwars_project.",
+    "Use drafts/ for working notes or scripts you do not want to upload yet."
+  ]
+}

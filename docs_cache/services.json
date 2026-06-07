@@ -1,0 +1,788 @@
+{
+  "AbilityService": {
+    "description": "Service for creating and enabling abilities.",
+    "functions": [
+      {
+        "name": "createAbility",
+        "signature": "AbilityService.createAbility(abilityName: string, abilityInputType: AbilityInputType, config: AbilityConfig)",
+        "notes": "Creates a new custom ability that can be enabled for players."
+      },
+      {
+        "name": "enableAbility",
+        "signature": "AbilityService.enableAbility(player: Player, abilityName: string, progressRate: number | nil)",
+        "notes": "Enables the custom ability for the player. Use the optional progressRate parameter to set the rate (in seconds) at which progress is restored to the custom ability."
+      },
+      {
+        "name": "removeAbility",
+        "signature": "AbilityService.removeAbility(player: Player, abilityName: string)",
+        "notes": "Removes the custom ability from the player."
+      },
+      {
+        "name": "setProgressRate",
+        "signature": "AbilityService.setProgressRate(player: Player, abilityName: string, progressRate: number | nil)",
+        "notes": "Sets the rate (in seconds) at which progress is restored to the cstom ability."
+      },
+      {
+        "name": "getProgress",
+        "signature": "AbilityService.getProgress(player: Player, abilityName: string): number",
+        "notes": "Returns the current progress of the ability."
+      },
+      {
+        "name": "addProgress",
+        "signature": "AbilityService.addProgress(player: Player, abilityName: string, amount: number)",
+        "notes": "Adds the given amount of progress to the current progress on the ability."
+      },
+      {
+        "name": "subProgress",
+        "signature": "AbilityService.subProgress(player: Player, abilityName: string, amount: number)",
+        "notes": "Subtracts the given amount of progress from the current progress on the ability."
+      },
+      {
+        "name": "setProgress",
+        "signature": "AbilityService.setProgress(player: Player, abilityName: string, amount: number)",
+        "notes": "Sets the progress for the ability to the given amount."
+      },
+      {
+        "name": "getAbilities",
+        "signature": "AbilityService.getAbilities(player: Player): string[]",
+        "notes": "Returns a list of custom abilities that the player currently has enabled."
+      }
+    ],
+    "source_name": "AbilityService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/abilityservice",
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "AbilityService.createAbility(\"script_speed\", \"MiscPrimary\", {\n    maxProgress = 10,\n    progressPerUse = 5,\n})\n\nAbilityService.enableAbility(MatchService.getHost(), \"script_speed\")\n\nEvents.UseAbility(function (event)\n    if (event.abilityName == \"script_speed\") then\n        StatusEffectService.giveEffect(event.entity, StatusEffectType.SPEED, 2)\n    end\nend)"
+      }
+    ]
+  },
+  "AnnouncementService": {
+    "description": "Service for sending announcement messages.",
+    "functions": [
+      {
+        "name": "sendAnnouncement",
+        "signature": "AnnouncementService.sendAnnouncement(message: string, color: Color3 | nil): bool",
+        "notes": "Sends the provided message as an announcement to all players. Use the optional color parameter to set the color of the announcement."
+      }
+    ],
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "Events.MatchStart(function(event)\n    local startMessage = \"You have 30 seconds to hide!\"\n    local color = Color3.fromRGB(80, 255, 175)\n    AnnouncementService.sendAnnouncement(startMessage, color)\n    \n    task.delay(30, function ()\n        local nextMessage = \"Seekers have been released!\"\n        AnnouncementService.sendAnnouncement(nextMessage, color) \n    end)\nend)"
+      }
+    ],
+    "source_name": "AnnouncementService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/announcementservice"
+  },
+  "BlockService": {
+    "description": "Service for placement and removal of blocks.",
+    "functions": [
+      {
+        "name": "placeBlock",
+        "signature": "BlockService.placeBlock(blockType: ItemType, position: Vector3): bool",
+        "notes": "Places a block at position. Returns true if block was placed."
+      },
+      {
+        "name": "getBlockAt",
+        "signature": "BlockService.getBlockAt(position: Vector3): Block | nil",
+        "notes": "Returns the block at the given position. Will return nil if no block exists at the position."
+      },
+      {
+        "name": "getAboveRandomBlock",
+        "signature": "BlockService.getAboveRandomBlock(aboveBlockTypes: ItemType [] | nil): Vector3",
+        "notes": "Returns a random position above a block. Can optionally specify a set of"
+      },
+      {
+        "name": "destroyBlock",
+        "signature": "BlockService.destroyBlock(position: Vector3): bool",
+        "notes": "Destroys block at position. Returns true if a block was destroyed."
+      },
+      {
+        "name": "getAllBlocks",
+        "signature": "BlockService.getAllBlocks(blockTypes: ItemType [] | nil): Block []",
+        "notes": "Returns all blocks in the world. If a set of"
+      },
+      {
+        "name": "getNearbyBlocks",
+        "signature": "BlockService.getNearbyBlocks(center: Vector3, size: Vector3, blockTypes: ItemType [] | nil): Block [] | nil",
+        "notes": "Returns blocks contained in a part centered at the specified"
+      }
+    ],
+    "examples": [
+      {
+        "description": "Replace block beneath all players with diamond blocks",
+        "code": "-- Replace block beneath all players with diamond blocks\nwhile (task.wait(0)) do\n    -- Loop over all players\n    for i, player in pairs(PlayerService.getPlayers()) do\n        -- Get player's entity\n        local entity = player:getEntity()\n        if (not entity) then\n            continue\n        end\n\n        -- Get block beneath player\n        local positionBeneath = entity:getPosition() - Vector3.new(0, 5, 0)\n        local blockBeneath = BlockService.getBlockAt(positionBeneath)\n        if blockBeneath then\n            -- If block beneath exists then destroy it and place diamond block\n            BlockService.destroyBlock(positionBeneath)\n            BlockService.placeBlock(ItemType.DIAMOND_BLOCK, positionBeneath)\n        end\n    end\nend"
+      },
+      {
+        "description": "Official docs example",
+        "code": "aboveBlockTypes"
+      },
+      {
+        "description": "Official docs example",
+        "code": "blockTypes"
+      },
+      {
+        "description": "Official docs example",
+        "code": "center"
+      },
+      {
+        "description": "Official docs example",
+        "code": "size"
+      }
+    ],
+    "source_name": "BlockService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/blockservice"
+  },
+  "ChatService": {
+    "description": "Service for sending chat messages.",
+    "functions": [
+      {
+        "name": "sendMessage",
+        "signature": "ChatService.sendMessage(message: string, color: Color3 | nil)",
+        "notes": "Sends the provided message as a chat message to all players. Use the optional color parameter to set the color of the message."
+      }
+    ],
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "Events.PlayerAdded(function (event)\n    ChatService.sendMessage(event.player.name .. \" joined the game!\")\nend)\n\nEvents.PlayerRemoving(function (event)\n    ChatService.sendMessage(event.player.name .. \" left the game.\")\nend)"
+      }
+    ],
+    "source_name": "ChatService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/chatservice"
+  },
+  "CombatService": {
+    "description": "Service for handling combat actions.",
+    "functions": [
+      {
+        "name": "damage",
+        "signature": "CombatService.damage(entity: Entity, amount: number, fromEntity: Entity | nil, knockback: Knockback | nil)",
+        "notes": "Deals the specified amount of damage to an entity. Use the optional"
+      },
+      {
+        "name": "heal",
+        "signature": "CombatService.heal(entity: Entity, amount: number)",
+        "notes": "Heals the entity for the specified amount."
+      }
+    ],
+    "source_name": "CombatService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/combatservice",
+    "examples": [
+      {
+        "description": "Game of red light green light (don't move when red!)",
+        "code": "-- Game of red light green light (don't move when red!)\nlocal lightIsGreen = false\n-- Toggle from red to green and green to red\nfunction swapLightColor()\n    local nextLightColorIsGreen = not lightIsGreen\n    local lightColor = \"GREEN\"\n    if not nextLightColorIsGreen then\n        lightColor = \"RED\"\n    end\n    MessageService.broadcast(\"Light changed: \" .. lightColor .. \"!\")\n\n    -- Wait briefly before changing to \"red\"\n    if lightIsGreen then\n        task.wait(1)\n    end\n    -- Swap light color\n    lightIsGreen = nextLightColorIsGreen\nend\n\nfunction getLightWaitTime()\n    local waitTime = 1.5 + math.random() * 4\n    if lightIsGreen then\n        waitTime = 5 + math.random() * 5\n    end\n    return waitTime\nend\n\n-- Function to change light color on an interval\nfunction startLightLoop()\n    while (task.wait(getLightWaitTime())) do\n        swapLightColor()\n    end\nend\n\nlocal lastPlayerPosition = {}\n-- Function to constantly check if a player has moved\nfunction startMovementLoop()\n    while task.wait(0.1) do\n        for i, player in PlayerService.getPlayers() do\n            local entity = player:getEntity()\n            if not entity then\n                lastPlayerPosition[player] = nil\n                continue\n            end\n            \n            -- Check if player moved when light is red\n            if not lightIsGreen and lastPlayerPosition[player] ~= nil then\n                local distance = lastPlayerPosition[player] - entity:getPosition()\n                if distance.Magnitude > 3 then\n                    CombatService.damage(entity, 100)\n                end\n            end\n            if lightIsGreen then\n                lastPlayerPosition[player] = entity:getPosition()\n            end\n        end\n    end\nend\n\ntask.spawn(startLightLoop)\ntask.spawn(startMovementLoop)"
+      },
+      {
+        "description": "Official docs example",
+        "code": "fromEntity"
+      },
+      {
+        "description": "Official docs example",
+        "code": "knockback"
+      }
+    ]
+  },
+  "DisasterService": {
+    "description": "Service for starting disaster events.",
+    "functions": [
+      {
+        "name": "startDisaster",
+        "signature": "DisasterService.startDisaster(disasterType: DisasterType, duration: number)",
+        "notes": "Starts a Disaster event that lasts for an optional duration in seconds."
+      }
+    ],
+    "source_name": "DisasterService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/disasterservice",
+    "examples": [
+      {
+        "description": "Start a Tornado disaster if someone receives the Wind enchant",
+        "code": "Events.Enchant(function(event)\n    -- Start a Tornado disaster if someone receives the Wind enchant\n    if (event.enchant == EnchantType.WIND_3) then\n         DisasterService.startDisaster(DisasterType.TORNADO, 3 * 60)\n    end\nend)"
+      }
+    ]
+  },
+  "DataStoreService": {
+    "description": "Service for accessing and storing persistent data for a map.",
+    "functions": [
+      {
+        "name": "getAsync",
+        "signature": "DataStoreService.getAsync(key: string | number): any",
+        "notes": "Returns the latest stored value for the given key."
+      },
+      {
+        "name": "setAsync",
+        "signature": "DataStoreService.setAsync(key: string | number, value: any): bool",
+        "notes": "Sets the latest value for the given key. Returns true if the network call was successful."
+      },
+      {
+        "name": "incrementAsync",
+        "signature": "DataStoreService.incrementAsync(key: string | number, amount: number): bool",
+        "notes": "Increases the current integer value for the given key by the given amount (must also be an integer value). Returns true if the network call was successful."
+      },
+      {
+        "name": "removeAsync",
+        "signature": "DataStoreService.removeAsync(key: string | number): bool",
+        "notes": "Marks the given key as deleted. Returns true if the network call was successful."
+      }
+    ],
+    "warnings": [
+      "Docs warn that DataStoreService functions yield. Use task.spawn() around them, especially from events."
+    ],
+    "source_name": "DataStoreService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/datastoreservice",
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "task.spawn()"
+      },
+      {
+        "description": "Double the score of a player whenever they kill an entity",
+        "code": "-- Double the score of a player whenever they kill an entity\nlocal function doubleScore(current)\n    return current * 2\nend\n\nEvents.EntityDeath(function (event)\n    local killerPlayer = event.killer:getPlayer()\n    if (killerPlayer == nil) then\n        return\n    end\n    task.spawn(function()\n        local currentValue = DataStoreService.getAsync(killerPlayer.userId)\n        if (currentValue == nil) then\n            currentValue = 1\n        end\n        DataStoreService.setAsync(killerPlayer.userId, doubleScore(currentValue))\n    end)\nend)"
+      }
+    ]
+  },
+  "EntityService": {
+    "description": "Service for creating new entities.",
+    "functions": [
+      {
+        "name": "getNearbyEntities",
+        "signature": "EntityService.getNearbyEntities(center: Vector3, radius: number): Entity [] | nil",
+        "notes": "Returns entities contained in the radius around the center position."
+      },
+      {
+        "name": "spawnKitEntity",
+        "signature": "EntityService.spawnKitEntity(kitType: KitType, position: Vector3): KitEntity | nil",
+        "notes": "Spawns an entity using a BedWars KitType model at the specified position."
+      },
+      {
+        "name": "spawnCreatureEntity",
+        "signature": "EntityService.spawnCreatureEntity(creatureType: CreatureType, position: Vector3, team: Team | nil): CreatureEntity | nil",
+        "notes": "Spawns a CreatureEntity using a BedWars CreatureType model at the specified position."
+      },
+      {
+        "name": "spawnImageEntity",
+        "signature": "EntityService.spawnImageEntity(image: string, position: Vector3): ImageEntity",
+        "notes": "Creates an ImageEntity using an image asset at the specified position."
+      }
+    ],
+    "source_name": "EntityService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/entityservice",
+    "examples": [
+      {
+        "description": "Add a Barbarian Kit entity to the game when the match begins",
+        "code": "Events.MatchStart(function(event)\n    -- Add a Barbarian Kit entity to the game when the match begins\n    local kit = EntityService.spawnKitEntity(KitType.BARBARIAN, BlockService.getAboveRandomBlock())\n    -- Give the kit entity a rageblade weapon\n    kit:setHandItem(ItemType.RAGEBLADE)\n    -- Gives the kit a set of Iron armor\n    kit:setArmor(ItemType.IRON_HELMET)\nend)"
+      },
+      {
+        "description": "Only spawn a creature if the entity that died was a player",
+        "code": "Events.EntityDeath(function(event) \n    -- Only spawn a creature if the entity that died was a player \n    if (event.entity:getPlayer() == nil) then \n        return \n    end\n    \n    -- Only spawn a creature if this was the final kill of the player\n    if not event.finalKill then\n        return\n    end\n    \n    -- Only spawn a creature if there was a killer\n    if (event.killer == nil) then\n        return\n    end\n    \n    -- Only spawn a creature if the killer was a player\n    if (event.killer:getPlayer() == nil) then\n        return\n    end\n    \n    local team = TeamService.getTeam(event.killer:getPlayer())\n    -- Spawns a Skeleton creature allied with the killer's team\n    EntityService.spawnCreatureEntity(CreatureType.SKELETON, event.killer.getPosition(), team)\nend)"
+      },
+      {
+        "description": "Official docs example",
+        "code": "function chase(player, entity)\n    while task.wait(0.1) do\n        if not player:getEntity() then\n           continue\n        end\n        entity:moveTo(player:getEntity():getPosition())\n    end\nend\n\nEvents.BlockPlace(function(event)\n    if (event.blockType == ItemType.SLIME_BLOCK) then\n        local entity = EntityService.spawnImageEntity(\"rbxassetid://11467634330\", event.position + Vector3.new(0,4,0))\n        entity:setCustomName(\"Gloop\")\n        task.spawn(function()\n            chase(event.player, entity)\n        end)\n    end\nend)"
+      }
+    ]
+  },
+  "ForgeService": {
+    "description": "This service is no longer compatible with the latest version of the game and should not be used.",
+    "functions": [],
+    "source_name": "ForgeService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/forgeservice",
+    "warnings": [
+      "Official docs say this service is no longer compatible with the latest version of the game and should not be used.",
+      "The official page does not document functions or examples for this service."
+    ]
+  },
+  "GeneratorService": {
+    "description": "Service for creating item generators.",
+    "functions": [
+      {
+        "name": "createGenerator",
+        "signature": "GeneratorService.createGenerator(itemType: ItemType, position: Vector3): Generator",
+        "notes": "Creates a Generator at the given position that will drop the item on a cooldown."
+      }
+    ],
+    "examples": [
+      {
+        "description": "Create a TNT generator above newly placed Ceramic blocks",
+        "code": "-- Create a TNT generator above newly placed Ceramic blocks\nEvents.BlockPlace(function(event)\n    if (event.blockType ~= ItemType.BLASTPROOF_CERAMIC) then\n        return\n    end\n\n    local gen = GeneratorService.createGenerator(ItemType.TNT, event.position)\n    gen:setCooldown(4)\n    gen:setMax(100)\nend)"
+      }
+    ],
+    "source_name": "GeneratorService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/generatorservice"
+  },
+  "GravityService": {
+    "description": "Service for setting world gravity.",
+    "functions": [
+      {
+        "name": "setGravity",
+        "signature": "GravityService.setGravity(gravity: number)",
+        "notes": "Sets Workspace.Gravity. Use with Player:registerJumpHeightMultiplier() to simulate low gravity."
+      }
+    ],
+    "source_name": "GravityService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/gravityservice",
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "GravityService.setGravity(15)\nfor i, player in ipairs(PlayerService.getPlayers()) do\n    player:registerJumpHeightMultiplier(25)\nend"
+      }
+    ]
+  },
+  "InputService": {
+    "description": "Service for tracking user input.",
+    "functions": [
+      {
+        "name": "registerInputBegan",
+        "signature": "InputService.registerInputBegan(keyCode: KeyCode, function: (player: Player) => nil)",
+        "notes": "Begins tracking the beginning of user input of the key code from all players."
+      },
+      {
+        "name": "registerInputEnded",
+        "signature": "InputService.registerInputEnded(keyCode: KeyCode, function: (player: Player) => nil)",
+        "notes": "Begins tracking the end of user input of the key code from all players."
+      }
+    ],
+    "source_name": "InputService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/inputservice",
+    "examples": [
+      {
+        "description": "Start a 10 second tornado event whenever the host presses the X key",
+        "code": "-- Start a 10 second tornado event whenever the host presses the X key\nInputService.registerInputBegan(KeyCode.X, function (player)\n    if (player == MatchService.getHost()) then\n        DisasterService.startDisaster(DisasterType.TORNADO, 10)\n    end\nend)\n\n-- Start a 10 second meteors event whenever the host stops pressing the Z key\nInputService.registerInputEnded(KeyCode.Z, function (player)\n    if (player == MatchService.getHost()) then\n        DisasterService.startDisaster(DisasterType.METEORS, 10)\n    end\nend)"
+      }
+    ]
+  },
+  "InventoryService": {
+    "description": "Service for handling inventory actions.",
+    "functions": [
+      {
+        "name": "giveItem",
+        "signature": "InventoryService.giveItem(player: Player, itemType: ItemType, amount: number, playWorldEffect: bool)",
+        "notes": "Gives a player a specified number of an item. If"
+      },
+      {
+        "name": "getAmount",
+        "signature": "InventoryService.getAmount(player: Player, itemType: ItemType): number",
+        "notes": "Returns amount of specified item the player has (0 if they have none)."
+      },
+      {
+        "name": "removeItemAmount",
+        "signature": "InventoryService.removeItemAmount(player: Player, itemType: ItemType, amount: number)",
+        "notes": "Removes the amount of the item from the player's inventory."
+      },
+      {
+        "name": "clearInventory",
+        "signature": "InventoryService.clearInventory(player: Player)",
+        "notes": "Clears all items from the player's inventory."
+      },
+      {
+        "name": "getInventory",
+        "signature": "InventoryService.getInventory(player: Player): { itemType: ItemType, amount: number }[]",
+        "notes": "Returns a table of the amount of each item the player has in their inventory - including armor and hand items."
+      }
+    ],
+    "examples": [
+      {
+        "description": "Set up a 20% chance to drop an emerald when damaging enemies",
+        "code": "-- Set up a 20% chance to drop an emerald when damaging enemies\nEvents.EntityDamage(function(event)\n    if not event.fromEntity then\n        return\n    end\n    \n    -- Only give emeralds when random between 1 and 5 is 1\n    if math.random(1, 5) ~= 1 then\n        return\n    end\n    \n    local fromPlayer = event.fromEntity:getPlayer()\n    if fromPlayer then\n        InventoryService.giveItem(fromPlayer, ItemType.EMERALD, 1, true)\n    end\nend)"
+      },
+      {
+        "description": "Official docs example",
+        "code": "playWorldEffect"
+      },
+      {
+        "description": "Official docs example",
+        "code": "local player = PlayerService.getPlayerByDisplayName(\"quinticat\")\nlocal inv = InventoryService.getInventory(player)\nfor i, data in ipairs(inv) do\n    print(player.name .. \" has \" .. data.amount .. \" \" .. data.itemType)\nend"
+      }
+    ],
+    "source_name": "InventoryService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/inventoryservice"
+  },
+  "ItemService": {
+    "description": "Service for handling dropped items.",
+    "functions": [
+      {
+        "name": "dropItem",
+        "signature": "ItemService.dropItem(itemType: ItemType, position: Vector3, amount: bool | nil)",
+        "notes": "Drops an item at a location. If amount is supplied, it becomes the item stack size."
+      }
+    ],
+    "source_name": "ItemService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/itemservice",
+    "examples": [
+      {
+        "description": "Randomly spawn resources around the map",
+        "code": "-- Randomly spawn resources around the map\nwhile task.wait(0.2) do\n    local position = BlockService.getAboveRandomBlock()\n    ItemService.dropItem(ItemType.EMERALD, position)\nend"
+      }
+    ]
+  },
+  "MatchService": {
+    "description": "Service with information on match state.",
+    "functions": [
+      {
+        "name": "getHost",
+        "signature": "MatchService.getHost(): Player",
+        "notes": "Returns the Player that is currently hosting the match."
+      },
+      {
+        "name": "getPlayerRole",
+        "signature": "MatchService.getPlayerRole(player: Player): MatchRole | nil",
+        "notes": "Returns the MatchRole of a player if it exists."
+      },
+      {
+        "name": "getMatchDurationSec",
+        "signature": "MatchService.getMatchDurationSec(): number",
+        "notes": "Returns amount of time in seconds since the match started (returns 0 if still in pre-game)."
+      },
+      {
+        "name": "getMatchState",
+        "signature": "MatchService.getMatchState(): MatchState",
+        "notes": "Returns current match state."
+      },
+      {
+        "name": "endMatch",
+        "signature": "MatchService.endMatch(winningTeam: Team | nil)",
+        "notes": "Ends the match with a specified winning team, or nil to cause a tie game."
+      }
+    ],
+    "source_name": "MatchService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/matchservice"
+  },
+  "MessageService": {
+    "description": "Service for sending game messages.",
+    "functions": [
+      {
+        "name": "broadcast",
+        "signature": "MessageService.broadcast(message: string)",
+        "notes": "Broadcasts a message to everyone online."
+      },
+      {
+        "name": "sendInfo",
+        "signature": "MessageService.sendInfo(player: Player, message: string)",
+        "notes": "Sends an info message to a specific player"
+      },
+      {
+        "name": "sendError",
+        "signature": "MessageService.sendError(player: Player, message: string)",
+        "notes": "Sends an error message to a specific player"
+      }
+    ],
+    "source_name": "MessageService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/messageservice",
+    "examples": [
+      {
+        "description": "Sends an info message to players when they get a kill",
+        "code": "-- Sends an info message to players when they get a kill\nEvents.EntityDeath(function(event)\n    if event.killer and event.killer:getPlayer() then\n        MessageService.sendInfo(event.killer:getPlayer(), \"You got a kill!\")\n    end\nend)"
+      }
+    ]
+  },
+  "ModelService": {
+    "description": "Service for creating models.",
+    "functions": [
+      {
+        "name": "createModel",
+        "signature": "ModelService.createModel(modelType: ModelType, position: Vector3): Model",
+        "notes": "Creates a model of the given name at the specified position. You can further customize and give functionality to it using the returned"
+      },
+      {
+        "name": "createItemModel",
+        "signature": "ModelService.createItemModel(itemType: ItemType, position: Vector3): Model",
+        "notes": "Creates a model of the given ItemType at the specified position. You can further customize and give functionality to it using the returned"
+      }
+    ],
+    "source_name": "ModelService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/modelservice",
+    "examples": [
+      {
+        "description": "Create a beachball above all iron blocks",
+        "code": "-- Create a beachball above all iron blocks\nlocal ironBlocks = BlockService.getAllBlocks({ ItemType.IRON_BLOCK })\nfor i, block in ipairs(ironBlocks) do\n    local positionAbove = block.position + Vector3.new(0, 3, 0)\n    local beachball = ModelService.createModel(ModelType.BEACHBALL, positionAbove)\n    beachball:setAnchored(false)\n    beachball:setCollidable(true)\n    beachball:setScale(0.75)\nend"
+      },
+      {
+        "description": "Official docs example",
+        "code": "Events.BlockPlace(function(event)\n    if (event.blockType ~= ItemType.STONE_BRICK) then\n        return\n    end    \n\n    local model = ModelService.createItemModel(ItemType.RAGEBLADE, event.position + Vector3.new(0,4,0))\n    model:setScale(1.2)\n    model:setRotation(Vector3.new(0,90,0))\nend)"
+      }
+    ]
+  },
+  "MountService": {
+    "description": "Service for spawning mounts.",
+    "functions": [
+      {
+        "name": "spawnMount",
+        "signature": "MountService.spawnMount(mountType: MountType, player: Player): void",
+        "notes": "Spawns a mount of the given type for the specified player and mounts the player."
+      }
+    ],
+    "source_name": "MountService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/mountservice",
+    "examples": [
+      {
+        "description": "Give all entities Dodo Birds when the match starts",
+        "code": "-- Give all entities Dodo Birds when the match starts\nEvents.MatchStart(function(event)\n    for i, player in ipairs(PlayerService.getPlayers()) do\n        MountService.spawnMount(MountType.DODO_BIRD, player)\n    end\nend)"
+      }
+    ]
+  },
+  "PlayerService": {
+    "description": "Service with utilities for Player objects",
+    "functions": [
+      {
+        "name": "getPlayers",
+        "signature": "PlayerService.getPlayers(): Player []",
+        "notes": "Returns all players in the server"
+      },
+      {
+        "name": "getNearbyPlayers",
+        "signature": "PlayerService.getNearbyPlayers(center: Vector3, radius: number): Player [] | nil",
+        "notes": "Returns players contained in the radius around the center position."
+      },
+      {
+        "name": "getPlayerByUserName",
+        "signature": "PlayerService.getPlayerByUserName(name: string): Player | nil",
+        "notes": "Returns the player in the game server whose username matches the provided string."
+      },
+      {
+        "name": "getPlayerByDisplayName",
+        "signature": "PlayerService.getPlayerByDisplayName(name: string): Player | nil",
+        "notes": "Returns the player in the game server whose display name matches the provided string."
+      }
+    ],
+    "source_name": "PlayerService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/playerservice"
+  },
+  "PartService": {
+    "description": "Service for creating Parts.",
+    "functions": [
+      {
+        "name": "createPart",
+        "signature": "PartService.createPart(blockType: ItemType, position: Vector3): Part",
+        "notes": "Creates a Part at the specified position. The"
+      }
+    ],
+    "source_name": "PartService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/partservice",
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "blockType"
+      }
+    ]
+  },
+  "ParticleService": {
+    "description": "Service for creating ParticleEmitters.",
+    "functions": [
+      {
+        "name": "createParticleEmitter",
+        "signature": "ParticleService.createParticleEmitter(position: Vector3, regionSize: Vector3): ParticleEmitter",
+        "notes": "Creates a ParticleEmitter at the specified position. If"
+      }
+    ],
+    "source_name": "ParticleService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/particleservice",
+    "examples": [
+      {
+        "description": "Create a record player and add music note particles on all beds",
+        "code": "-- Create a record player and add music note particles on all beds\nlocal rainbowColorSequence = ColorSequence.new({\n    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 115, 115)),\n    ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 188, 105)),\n    ColorSequenceKeypoint.new(0.3, Color3.fromRGB(251, 255, 124)),\n    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 255, 129)),\n    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(101, 201, 255)),\n    ColorSequenceKeypoint.new(0.8, Color3.fromRGB(140, 120, 255)),\n    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 139, 255)),\n})\n\nlocal teams = TeamService.getAllTeams()\nfor i, team in ipairs(teams) do\n    local block = TeamService.getTeamBed(team)\n    local positionAbove = block.position + Vector3.new(0, 2.5, 0)\n    local recordPlayer = ModelService.createModel(ModelType.RECORD_PLAYER, positionAbove)\n\n    local emitter = ParticleService.createParticleEmitter(positionAbove, Vector3.new(0, 0, 0))\n\n    emitter:setTexture(\"rbxassetid://7065482760\")\n\n    emitter:setRate(1.75)\n    emitter:setLifetime(NumberRange.new(6, 7))\n    emitter:setSpeed(NumberRange.new(1.7, 2))\n    emitter:setDrag(0.25)\n    emitter:setBrightness(1)\n    emitter:setParticleOrientation(ParticleOrientation.FacingCamera)\n    emitter:setSpreadAngle(Vector2.new(-20,45))\n    emitter:setColor(rainbowColorSequence)\nend"
+      },
+      {
+        "description": "Official docs example",
+        "code": "regionSize"
+      },
+      {
+        "description": "Official docs example",
+        "code": "Vector3.new(0,0,0)"
+      }
+    ]
+  },
+  "PromptService": {
+    "description": "Service for creating Proximity Prompts.",
+    "functions": [
+      {
+        "name": "createPrompt",
+        "signature": "PromptService.createPrompt(objectText: string, actionText: string, position: Vector3): Prompt",
+        "notes": "Creates an in-world prompt at the specified position. You can further customize and give functionality to it using the returned"
+      }
+    ],
+    "source_name": "PromptService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/promptservice",
+    "examples": [
+      {
+        "description": "Create a game winning prompt at the end of an obby",
+        "code": "-- Create a game winning prompt at the end of an obby\nlocal emeraldBlocks = BlockService.getAllBlocks({ ItemType.EMERALD_BLOCK })\nfor i, block in ipairs(emeraldBlocks) do\n    -- Create prompt at all emerald blocks with hold duration of 3s\n    local prompt = PromptService.createPrompt(\"Goal\", \"Win\", block.position)\n    prompt:setHoldDuration(3)\n    \n    -- When activated end the match with the activating player as the winner\n    prompt:onActivated(function(player)\n        local team = TeamService.getTeam(player)\n        MatchService.endMatch(team)\n    end)\nend"
+      }
+    ]
+  },
+  "ShopService": {
+    "description": "Service for adding and removing items from the shop.",
+    "functions": [
+      {
+        "name": "getAllShopkeeperIds",
+        "signature": "ShopService.getAllShopkeeperIds(): string[]",
+        "notes": "Returns all current shopkeepers (by ID) in the game."
+      },
+      {
+        "name": "spawnShopkeeper",
+        "signature": "ShopService.spawnShopkeeper(shopType: \"items\" | \"upgrade\", position: Vector3): string",
+        "notes": "Creates an item shopkeeper or upgrade shopkeeper at the given position. Returns the ID (string) of the created shop."
+      },
+      {
+        "name": "despawnShopkeeper",
+        "signature": "ShopService.despawnShopkeeper(shopId: string)",
+        "notes": "Deletes the shopkeeper with the given ID (string)."
+      },
+      {
+        "name": "addItem",
+        "signature": "ShopService.addItem(item: ItemType, amount: number, costItem: ItemType, price: number)",
+        "notes": "Adds an item to the shop for all players."
+      },
+      {
+        "name": "removeItem",
+        "signature": "ShopService.removeItem(item: ItemType)",
+        "notes": "Removes the item from the shop for all players."
+      }
+    ],
+    "source_name": "ShopService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/shopservice",
+    "examples": [
+      {
+        "description": "Adds 1 Solar Panel to the shop that can be purchased for 3 Diamonds",
+        "code": "Events.MatchStart(function(event)\n    -- Adds 1 Solar Panel to the shop that can be purchased for 3 Diamonds\n    ShopService.addItem(ItemType.SOLAR_PANEL, 1, ItemType.DIAMOND, 3)\n    -- Adds 1 Tennis Racket to the shop that can be purchased for 15 Iron\n    ShopService.addItem(ItemType.TENNIS_RACKET, 1, ItemType.IRON, 15)\nend)"
+      }
+    ]
+  },
+  "SoundService": {
+    "description": "Service for playing sounds.",
+    "functions": [
+      {
+        "name": "playSound",
+        "signature": "SoundService.playSound(sound: SoundType, position: Vector3 | nil)",
+        "notes": "Plays a sound globally. You can optionally specify where the sound will come from."
+      },
+      {
+        "name": "playSoundForPlayer",
+        "signature": "SoundService.playSoundForPlayer(player: Player, sound: SoundType, position: Vector3 | nil)",
+        "notes": "Plays a sound for a specific player. You can optionally specify where the sound will come from."
+      }
+    ],
+    "source_name": "SoundService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/soundservice",
+    "examples": [
+      {
+        "description": "Play a honk sound whenever an entity takes damage",
+        "code": "-- Play a honk sound whenever an entity takes damage\nEvents.EntityDamage(function(event)\n    local attackedPosition = event.entity:getPosition()\n    SoundService.playSound(SoundType.VOICE_HONK, attackedPosition)\nend)"
+      }
+    ]
+  },
+  "StatusEffectService": {
+    "description": "Service for giving and removing status effects.",
+    "functions": [
+      {
+        "name": "giveEffect",
+        "signature": "StatusEffectService.giveEffect(entity: Entity, effect: StatusEffectType, duration: number | nil)",
+        "notes": "Gives an effect to an entity. You can optionally specify the duration (in seconds) of the effect."
+      },
+      {
+        "name": "removeEffect",
+        "signature": "StatusEffectService.removeEffect(entity: Entity, effect: StatusEffectType)",
+        "notes": "Removes an effect from an entity"
+      },
+      {
+        "name": "hasEffect",
+        "signature": "StatusEffectService.hasEffect(entity: Entity, effect: StatusEffectType): bool",
+        "notes": "Returns true if the entity has the specified status effect currently applied to them."
+      }
+    ],
+    "source_name": "StatusEffectService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/statuseffectservice",
+    "examples": [
+      {
+        "description": "Give all entities the Speed Status Effect when the match starts for 60 seconds",
+        "code": "-- Give all entities the Speed Status Effect when the match starts for 60 seconds\nEvents.MatchStart(function(event)\n    for i, player in ipairs(PlayerService.getPlayers()) do\n        local entity = player:getEntity()\n        if not entity then\n            continue\n        end\n        StatusEffectService.giveEffect(entity, StatusEffectType.SPEED, 60)\n    end\nend)"
+      }
+    ]
+  },
+  "VehicleService": {
+    "description": "Service for creating vehicles.",
+    "functions": [
+      {
+        "name": "spawnVehicle",
+        "signature": "VehicleService.spawnVehicle(vehicleType: VehicleType, position: Vector3): void",
+        "notes": "Spawns a vehicle of the given type at the specified position."
+      }
+    ],
+    "source_name": "VehicleService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/vehicleservice",
+    "examples": [
+      {
+        "description": "Give all entities UFOs when the match starts",
+        "code": "-- Give all entities UFOs when the match starts\nEvents.MatchStart(function(event)\n    for i, player in ipairs(PlayerService.getPlayers()) do\n        local position = player:getEntity():getPosition()\n        MountService.spawnVehicle(VehicleType.UFO, position)\n    end\nend)"
+      }
+    ]
+  },
+  "TeamService": {
+    "description": "Service for handling team assignments.",
+    "functions": [
+      {
+        "name": "getTeam",
+        "signature": "TeamService.getTeam(player: Player): Team | nil",
+        "notes": "Returns player's team. If player is not on a team this will return nil."
+      },
+      {
+        "name": "setTeam",
+        "signature": "TeamService.setTeam(player: Player, team: Team)",
+        "notes": "Changes the team of a player."
+      },
+      {
+        "name": "getAllTeams",
+        "signature": "TeamService.getAllTeams(): Team []",
+        "notes": "Returns table of all teams."
+      },
+      {
+        "name": "getTeamBed",
+        "signature": "TeamService.getTeamBed(team: Team): Block",
+        "notes": "Returns the block instance of the given team's bed."
+      }
+    ],
+    "source_name": "TeamService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/teamservice",
+    "examples": [
+      {
+        "description": "Gamemode: Tag",
+        "code": "-- Gamemode: Tag\n-- Hitting players makes them join your team.\n-- Once everyone is on the same team the game ends.\nEvents.EntityDamage(function(event)\n    -- Can only tag players\n    if not event.entity:getPlayer() then\n        return\n    end\n    -- Make sure the tagger is a player\n    if (not event.fromEntity or not event.fromEntity:getPlayer()) then\n        return\n    end\n    \n    local attackerTeam = TeamService.getTeam(event.fromEntity:getPlayer())\n    TeamService.setTeam(event.entity:getPlayer(), attackerTeam)\n    \n    -- Check that all teams besides the attackerTeam are empty\n    -- If so give win to attacker team\n    local gameOver = true\n    for i, team in ipairs(TeamService.getAllTeams()) do\n        if (team == attackerTeam) then\n            continue\n        end\n        \n        -- If another team has players the game is not over\n        if #team:getInGamePlayers() > 0 then\n            gameOver = false\n            break\n        end\n    end\n    \n    -- Give out win\n    if gameOver then\n        MatchService.endMatch(attackerTeam)\n    end\nend)"
+      }
+    ]
+  },
+  "UIService": {
+    "description": "Service for creating in-game UI.",
+    "functions": [
+      {
+        "name": "createProgressBar",
+        "signature": "UIService.createProgressBar(maxProgress: number): ProgressBar",
+        "notes": "Creates a progress bar with the given maximum progress value. By default, progress bars are displayed globally, but the list of players who are able to view the progress bar can be configured."
+      },
+      {
+        "name": "createLeaderboard",
+        "signature": "UIService.createLeaderboard(): Leaderboard",
+        "notes": "Creates a Leaderboard that is displayed for all players."
+      },
+      {
+        "name": "createTextLabel",
+        "signature": "UIService.createTextLabel(text: string, position: Vector3): TextLabel",
+        "notes": "Creates a TextLabel that is displayed in-world."
+      }
+    ],
+    "source_name": "UIService | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/uiservice",
+    "examples": [
+      {
+        "description": "Official docs example",
+        "code": "local diamondBar = UIService.createProgressBar(10)\ndiamondBar:setColor(Color3.fromRGB(0, 179, 179))\n\nlocal emeraldBar = UIService.createProgressBar(15)\nemeraldBar:setColor(Color3.fromRGB(80, 200, 120))\n\nEvents.InventoryItemAdded(function(event)\n    if (event.item == ItemType.DIAMOND) then\n        diamondBar:add(event.amount)\n    end    \n    if (event.item == ItemType.EMERALD) then\n        emeraldBar:add(event.amount)\n    end\nend)"
+      },
+      {
+        "description": "Official docs example",
+        "code": "local board = UIService.createLeaderboard()\n\nboard:addKey('Blue')\nboard:addKey('Pink')\n\nEvents.BlockPlace(function(event)\n    if (event.blockType == ItemType.WOOL_PINK) then\n        board:addScore('Pink', 1)\n    end\n    if (event.blockType == ItemType.WOOL_BLUE) then\n        board:addScore('Blue', 1)\n    end\nend)"
+      },
+      {
+        "description": "Create a text label above all Slime Blocks",
+        "code": "-- Create a text label above all Slime Blocks\nlocal slimeBlocks = BlockService.getAllBlocks({ ItemType.SLIME_BLOCK })\n\nfor i, block in ipairs(slimeBlocks) do\n    local positionAbove = block.position + Vector3.new(0, 6, 0)\n    local label = UIService.createTextLabel(\"Gloop's House\", positionAbove)\n\n    label:setBackgroundColor(Color3.fromRGB(126, 255, 103))\n    label:setBackgroundTransparency(0.2)\n    label:setTextColor(Color3.fromRGB(0,0,0))\n    label:setSize(UDim2.fromScale(10,2))\n    label:setFont(Font.LuckiestGuy)\nend"
+      }
+    ]
+  }
+}

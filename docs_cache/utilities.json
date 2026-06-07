@@ -1,0 +1,73 @@
+{
+  "require": {
+    "description": "Limited utility listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "math": {
+    "description": "Limited math library listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "pairs": {
+    "description": "pairs is listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "ipairs": {
+    "description": "ipairs is listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "print": {
+    "description": "print is listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "error": {
+    "description": "error is listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "os": {
+    "description": "Limited os utility listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "string": {
+    "description": "Limited string library listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "table": {
+    "description": "Limited table library listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "task": {
+    "description": "task utility listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "tick": {
+    "description": "tick utility listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "tostring": {
+    "description": "tostring utility listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "tonumber": {
+    "description": "tonumber utility listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  },
+  "wait": {
+    "description": "wait utility listed in the official BedWars Creative Utilities index.",
+    "source_name": "Utilities | BedWars Creative",
+    "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/utilities"
+  }
+}
+
