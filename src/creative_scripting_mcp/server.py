@@ -421,6 +421,40 @@ def _sync_directory_with_token(
     return result
 
 
+def _directory_contains_syncable_lua(root: Path) -> bool:
+    if not root.exists() or not root.is_dir():
+        return False
+
+    for candidate in root.rglob("*.lua"):
+        if not candidate.is_file():
+            continue
+        resolved = candidate.resolve()
+        if resolved != root and root not in resolved.parents:
+            continue
+        relative_parts = resolved.relative_to(root).parts
+        if ".deleted" in relative_parts:
+            continue
+        if candidate.name.casefold() == "bwconfig.lua":
+            continue
+        return True
+    return False
+
+
+def _prepare_directory_for_first_sync(root: Path, glob_pattern: str, *, allow_empty: bool) -> tuple[str, dict[str, Any] | None]:
+    if allow_empty:
+        return glob_pattern, None
+    if root.exists() and not root.is_dir():
+        return glob_pattern, None
+    if _directory_contains_syncable_lua(root):
+        return glob_pattern, None
+
+    prepared = prepare_directory_project(
+        directory=str(root),
+        prompt=f"BedWars Creative project for {root.name}",
+    )
+    return "scripts/**/*.lua", prepared
+
+
 def _store_sync_session(sync_token: str, result: dict[str, Any]) -> None:
     if not result.get("ok"):
         return
@@ -1139,7 +1173,7 @@ def prepare_directory_project(
 
     default_code = (
         "-- Main BedWars script entry point.\n"
-        "ChatService.sendMessage(\"HitReg project loaded.\")\n"
+        "ChatService.sendMessage(\"BedWars Creative project loaded.\")\n"
     )
     main_script = scripts_dir / "main.lua"
     wrote_main = overwrite_main or not main_script.exists()
@@ -1300,6 +1334,7 @@ def connect_sync(
     root = str(_safe_directory_project_path(directory)) if directory.strip() else str(_hitreg_directory())
     root_path = _safe_directory_project_path(root)
     selected_glob = glob_pattern.strip() or _read_bwconfig_sync_glob(root_path, "**/*.lua")
+    selected_glob, prepared = _prepare_directory_for_first_sync(root_path, selected_glob, allow_empty=allow_empty)
     result = _sync_directory_with_token(sync_token, str(root_path), selected_glob, allow_empty=allow_empty)
     _store_sync_session(sync_token, result)
     watcher_started = _start_sync_watcher() if watch and result.get("ok") else False
@@ -1313,6 +1348,7 @@ def connect_sync(
         "status_code": result.get("status_code"),
         "uploaded_files": result.get("uploaded_files"),
         "file_count": result.get("file_count"),
+        "prepared": prepared,
         "token_stored_in_memory_only": True,
     }
 
@@ -1380,8 +1416,11 @@ def sync_directory(
     """Upload .lua files from any local directory to BedWars Code Sync."""
     root = _safe_directory_project_path(directory)
     selected_glob = glob_pattern.strip() or _read_bwconfig_sync_glob(root, "**/*.lua")
+    selected_glob, prepared = _prepare_directory_for_first_sync(root, selected_glob, allow_empty=allow_empty)
     result = _sync_directory_with_token(sync_token, str(root), selected_glob, allow_empty=allow_empty)
     _store_sync_session(sync_token, result)
+    if prepared:
+        result["prepared"] = prepared
     return result
 
 

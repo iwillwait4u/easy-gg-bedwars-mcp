@@ -139,17 +139,13 @@ sync_hitreg(sync_token="{sync-token}")
 For other folders:
 
 ```text
-prepare_directory_project(
-  directory="C:\\path\\to\\your-project",
-  prompt="BedWars Creative project"
-)
-
 sync_directory(
   sync_token="{sync-token}",
-  directory="C:\\path\\to\\your-project",
-  glob_pattern="scripts/**/*.lua"
+  directory="C:\\path\\to\\your-project"
 )
 ```
+
+If the folder has no syncable `.lua` files yet, `sync_directory` and `connect_sync` prepare it first by creating `scripts/`, `drafts/`, `prompts/`, `bwconfig.lua`, `bedwars-project.json`, and `scripts/main.lua`, then sync with `scripts/**/*.lua`.
 
 To remove a script from BedWars, delete it locally and sync the whole containing folder/project:
 
@@ -261,4 +257,3 @@ gh release create v0.1.0 --title "v0.1.0" --notes "Initial easy-gg-bedwars-mcp r
 ```
 
 If the GitHub CLI is not installed, open the repo on GitHub, go to **Releases**, choose **Draft a new release**, select tag `v0.1.0`, and publish it.
-

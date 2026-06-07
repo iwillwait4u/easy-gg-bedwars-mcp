@@ -123,7 +123,7 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "connect_sync": {
         "name": "connect_sync",
         "category": "connected sync",
-        "description": "Store a Code Sync token in memory for one folder and optionally start auto-sync polling.",
+        "description": "Store a Code Sync token in memory for one folder, preparing empty folders before the first upload.",
         "context": "Use after the user provides a fresh Sync tab token and wants later syncs to reuse the same folder.",
     },
     "sync_connected": {
@@ -159,8 +159,8 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "sync_directory": {
         "name": "sync_directory",
         "category": "sync",
-        "description": "Upload matching Lua files from any local directory using a Code Sync token.",
-        "context": "Use for project folders outside this repo. Uploads relative to scripts/ when all files are under scripts/.",
+        "description": "Upload matching Lua files from any local directory, preparing empty folders before the first upload.",
+        "context": "Use for project folders outside this repo. Empty folders are initialized with scripts/main.lua and synced with scripts/**/*.lua.",
     },
     "edit_script": {
         "name": "edit_script",
