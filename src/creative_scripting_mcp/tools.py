@@ -162,6 +162,12 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Upload matching Lua files from any local directory, preparing empty folders before the first upload.",
         "context": "Use for project folders outside this repo. Empty folders are initialized with scripts/main.lua and synced with scripts/**/*.lua.",
     },
+    "force_sync_directory": {
+        "name": "force_sync_directory",
+        "category": "sync",
+        "description": "Hard-sync an outside folder by preparing it, updating a visible probe script, uploading scripts/, and connecting the watcher.",
+        "context": "Use when a normal sync returned 201 but the Roblox editor did not visibly refresh, or when the user wants the strongest first sync for a new folder.",
+    },
     "edit_script": {
         "name": "edit_script",
         "category": "authoring",

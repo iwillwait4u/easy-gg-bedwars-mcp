@@ -147,6 +147,17 @@ sync_directory(
 
 If the folder has no syncable `.lua` files yet, `sync_directory` and `connect_sync` prepare it first by creating `scripts/`, `drafts/`, `prompts/`, `bwconfig.lua`, `bedwars-project.json`, and `scripts/main.lua`, then sync with `scripts/**/*.lua`.
 
+If the HTTP upload succeeds but the Roblox editor does not visibly refresh, use the hard-sync flow:
+
+```text
+force_sync_directory(
+  sync_token="{sync-token}",
+  directory="C:\\path\\to\\your-project"
+)
+```
+
+This prepares the folder, updates `scripts/zz_sync_probe.lua`, uploads the whole `scripts/` folder with `scripts/**/*.lua`, and reconnects the watcher.
+
 To remove a script from BedWars, delete it locally and sync the whole containing folder/project:
 
 ```text
