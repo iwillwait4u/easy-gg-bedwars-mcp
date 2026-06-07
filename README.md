@@ -23,10 +23,9 @@ cd "C:\path\to\easy-gg-bedwars-mcp"
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 py -m pip install -e .
-python server.py
 ```
 
-The server uses the Python MCP SDK package `mcp`.
+The server uses the Python MCP SDK package `mcp`. Codex/Claude starts the MCP server from its config; do not keep `python server.py` running for normal use.
 
 ## Project Layout
 
@@ -139,6 +138,8 @@ sync_hitreg(sync_token="{sync-token}")
 For other folders:
 
 ```text
+read_directory_project(directory="C:\\path\\to\\your-project")
+
 sync_directory(
   sync_token="{sync-token}",
   directory="C:\\path\\to\\your-project"
@@ -146,6 +147,13 @@ sync_directory(
 ```
 
 If the folder has no syncable `.lua` files yet, `sync_directory` and `connect_sync` prepare it first by creating `scripts/`, `drafts/`, `prompts/`, `bwconfig.lua`, `bedwars-project.json`, and `scripts/main.lua`, then sync with `scripts/**/*.lua`.
+
+For normal project work, use MCP tools instead of terminal file scans:
+
+- `read_directory_project` to inspect folder state, scripts, prompt, and config.
+- `read_directory_script` to read a project Lua file.
+- `create_directory_script` to write scripts under `scripts/`.
+- `force_sync_directory` for the strongest first sync.
 
 If the HTTP upload succeeds but the Roblox editor does not visibly refresh, use the hard-sync flow:
 

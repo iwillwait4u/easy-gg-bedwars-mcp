@@ -6,6 +6,10 @@ from typing import Any
 SERVER_INSTRUCTIONS = (
     "easy-gg-bedwars-custom MCP for Easy.gg Roblox BedWars Creative Host Panel projects. "
     "Use documented in-game Lua APIs, local project files, and Code Sync. "
+    "For normal project work, prefer MCP tools over shell commands: use "
+    "read_directory_project/read_directory_script instead of PowerShell folder scans, "
+    "search_docs/read_service/read_event instead of broad filesystem searches, and "
+    "force_sync_directory when a visible first sync is needed. "
     "The Lua sandbox is limited: do not assume standard Lua globals such as pcall "
     "or xpcall exist. Protected-call behavior cannot be recreated without runtime "
     "support; use defensive nil/state/type checks instead. "
@@ -102,11 +106,23 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Prepare any local folder as a project with scripts/, drafts/, prompts/, bwconfig.lua, and metadata.",
         "context": "Use when the user points at an outside folder and wants it organized for Code Sync.",
     },
+    "read_directory_project": {
+        "name": "read_directory_project",
+        "category": "directory projects",
+        "description": "Inspect an outside folder project's metadata, prompt, bwconfig, and script file lists without shell commands.",
+        "context": "Use before editing or syncing any user-provided folder path. This replaces PowerShell directory scans for normal workflows.",
+    },
     "create_directory_script": {
         "name": "create_directory_script",
         "category": "directory projects",
         "description": "Create or replace a Lua script in an outside folder project's scripts/ or drafts/ folder.",
         "context": "Use for the active user project directory. sync=true writes under scripts/.",
+    },
+    "read_directory_script": {
+        "name": "read_directory_script",
+        "category": "directory projects",
+        "description": "Read a Lua script from an outside folder project's scripts/ or drafts/ folder.",
+        "context": "Use to inspect user project scripts before editing, validating, or syncing. This replaces PowerShell Get-Content for project Lua files.",
     },
     "delete_directory_script": {
         "name": "delete_directory_script",

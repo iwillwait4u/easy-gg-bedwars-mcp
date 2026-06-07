@@ -638,10 +638,41 @@ def _directory_relative_script_path(directory: str, file_name: str, *, sync: boo
         raise BedWarsMcpError("Only .lua files are allowed.")
 
     section = "scripts" if sync else "drafts"
+    if requested.parts and requested.parts[0].casefold() == section:
+        requested = Path(*requested.parts[1:])
+        if not requested.parts:
+            raise BedWarsMcpError("file_name must include a .lua file name.")
     path = (root / section / requested).resolve()
     if path != root and root not in path.parents:
         raise BedWarsMcpError("Resolved script path is outside the selected directory.")
     return root, path
+
+
+def _directory_lua_file_infos(root: Path, base: Path) -> list[dict[str, Any]]:
+    if not base.exists():
+        return []
+
+    files: list[dict[str, Any]] = []
+    for path in sorted(base.rglob("*.lua")):
+        if not path.is_file():
+            continue
+        resolved = path.resolve()
+        if resolved != root and root not in resolved.parents:
+            continue
+        relative_parts = resolved.relative_to(root).parts
+        if ".deleted" in relative_parts:
+            continue
+
+        stat = path.stat()
+        files.append(
+            {
+                "file_name": str(path.relative_to(base)).replace("\\", "/"),
+                "project_path": str(path.relative_to(root)).replace("\\", "/"),
+                "bytes": stat.st_size,
+                "modified_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(timespec="seconds"),
+            }
+        )
+    return files
 
 
 def _post_sync_files(
@@ -1244,6 +1275,69 @@ def prepare_directory_project(
 
 
 @bedwars_tool
+def read_directory_project(directory: str) -> dict[str, Any]:
+    """Inspect an outside directory project without shell commands."""
+    root = _safe_directory_project_path(directory)
+    if not root.exists():
+        return {
+            "directory": str(root),
+            "exists": False,
+            "is_dir": False,
+            "can_prepare": True,
+            "suggested_next_tool": "prepare_directory_project",
+        }
+    if not root.is_dir():
+        raise BedWarsMcpError(f"Project path is not a directory: {root}")
+
+    scripts_dir = root / "scripts"
+    drafts_dir = root / "drafts"
+    prompts_dir = root / "prompts"
+    prompt_file = prompts_dir / "brief.md"
+    manifest_path = root / "bedwars-project.json"
+    bwconfig_path = root / "bwconfig.lua"
+
+    manifest: dict[str, Any] | None = None
+    if manifest_path.exists():
+        try:
+            manifest_value = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if isinstance(manifest_value, dict):
+                manifest = manifest_value
+        except json.JSONDecodeError:
+            manifest = None
+
+    entries = []
+    for path in sorted(root.iterdir(), key=lambda item: item.name.casefold()):
+        entries.append(
+            {
+                "name": path.name,
+                "kind": "directory" if path.is_dir() else "file",
+                "bytes": path.stat().st_size if path.is_file() else None,
+            }
+        )
+
+    sync_files = _directory_lua_file_infos(root, scripts_dir)
+    draft_files = _directory_lua_file_infos(root, drafts_dir)
+    return {
+        "directory": str(root),
+        "exists": True,
+        "is_dir": True,
+        "scripts_dir": str(scripts_dir),
+        "drafts_dir": str(drafts_dir),
+        "prompt_file": str(prompt_file),
+        "prompt": prompt_file.read_text(encoding="utf-8") if prompt_file.exists() else "",
+        "manifest_file": str(manifest_path),
+        "manifest": manifest,
+        "bwconfig_file": str(bwconfig_path),
+        "bwconfig": bwconfig_path.read_text(encoding="utf-8") if bwconfig_path.exists() else "",
+        "sync_glob": _read_bwconfig_sync_glob(root, "scripts/**/*.lua"),
+        "top_level_entries": entries,
+        "sync_files": sync_files,
+        "draft_files": draft_files,
+        "suggested_sync_tool": "force_sync_directory" if not sync_files else "sync_directory",
+    }
+
+
+@bedwars_tool
 def create_directory_script(
     directory: str,
     file_name: str,
@@ -1260,6 +1354,25 @@ def create_directory_script(
         "path": str(path),
         "sync": sync,
         "bytes": path.stat().st_size,
+    }
+
+
+@bedwars_tool
+def read_directory_script(
+    directory: str,
+    file_name: str,
+    sync: bool = True,
+) -> dict[str, Any]:
+    """Read a Lua script in an outside directory project's scripts/ or drafts/ folder."""
+    root, path = _directory_relative_script_path(directory, file_name, sync=sync)
+    if not path.exists():
+        raise BedWarsMcpError(f"Script not found: {path}")
+    return {
+        "directory": str(root),
+        "file_name": str(path.relative_to(root)).replace("\\", "/"),
+        "path": str(path),
+        "sync": sync,
+        "code": path.read_text(encoding="utf-8"),
     }
 
 
