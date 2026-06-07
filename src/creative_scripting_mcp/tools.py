@@ -139,8 +139,8 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "connect_sync": {
         "name": "connect_sync",
         "category": "connected sync",
-        "description": "Store a Code Sync token in memory for one folder, preparing empty folders before the first upload.",
-        "context": "Use after the user provides a fresh Sync tab token and wants later syncs to reuse the same folder.",
+        "description": "Store a Code Sync token in memory for one folder, preparing and probing before the first upload.",
+        "context": "Use after the user provides a fresh Sync tab token and wants later syncs to reuse the same folder. By default this uploads scripts/**/*.lua and updates zz_sync_probe.lua unless allow_empty=true.",
     },
     "sync_connected": {
         "name": "sync_connected",
@@ -175,8 +175,8 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "sync_directory": {
         "name": "sync_directory",
         "category": "sync",
-        "description": "Upload matching Lua files from any local directory, preparing empty folders before the first upload.",
-        "context": "Use for project folders outside this repo. Empty folders are initialized with scripts/main.lua and synced with scripts/**/*.lua.",
+        "description": "Upload an outside folder using the visible hard-sync path by default.",
+        "context": "Use for project folders outside this repo. By default this prepares scripts/, updates zz_sync_probe.lua, uploads scripts/**/*.lua, and connects the watcher. Use allow_empty=true for intentional delete-all syncs.",
     },
     "force_sync_directory": {
         "name": "force_sync_directory",

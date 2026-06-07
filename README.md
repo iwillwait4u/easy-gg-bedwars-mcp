@@ -146,16 +146,16 @@ sync_directory(
 )
 ```
 
-If the folder has no syncable `.lua` files yet, `sync_directory` and `connect_sync` prepare it first by creating `scripts/`, `drafts/`, `prompts/`, `bwconfig.lua`, `bedwars-project.json`, and `scripts/main.lua`, then sync with `scripts/**/*.lua`.
+By default, `sync_directory` and `connect_sync` use the visible hard-sync path: they prepare `scripts/`, `drafts/`, `prompts/`, `bwconfig.lua`, `bedwars-project.json`, and `scripts/main.lua` when needed, update `scripts/zz_sync_probe.lua`, upload `scripts/**/*.lua`, and connect the watcher. Use `allow_empty=true` only when intentionally deleting every remote script.
 
 For normal project work, use MCP tools instead of terminal file scans:
 
 - `read_directory_project` to inspect folder state, scripts, prompt, and config.
 - `read_directory_script` to read a project Lua file.
 - `create_directory_script` to write scripts under `scripts/`.
-- `force_sync_directory` for the strongest first sync.
+- `sync_directory` for the strongest first sync.
 
-If the HTTP upload succeeds but the Roblox editor does not visibly refresh, use the hard-sync flow:
+If the HTTP upload succeeds but the Roblox editor does not visibly refresh, use the explicit hard-sync tool:
 
 ```text
 force_sync_directory(
@@ -164,7 +164,7 @@ force_sync_directory(
 )
 ```
 
-This prepares the folder, updates `scripts/zz_sync_probe.lua`, uploads the whole `scripts/` folder with `scripts/**/*.lua`, and reconnects the watcher.
+This does the same hard-sync steps explicitly.
 
 To remove a script from BedWars, delete it locally and sync the whole containing folder/project:
 

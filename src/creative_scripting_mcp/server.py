@@ -449,32 +449,18 @@ def _sync_directory_with_token(
     return result
 
 
-def _directory_contains_syncable_lua(root: Path) -> bool:
-    if not root.exists() or not root.is_dir():
-        return False
-
-    for candidate in root.rglob("*.lua"):
-        if not candidate.is_file():
-            continue
-        resolved = candidate.resolve()
-        if resolved != root and root not in resolved.parents:
-            continue
-        relative_parts = resolved.relative_to(root).parts
-        if ".deleted" in relative_parts:
-            continue
-        if candidate.name.casefold() == "bwconfig.lua":
-            continue
-        return True
-    return False
-
-
 def _prepare_directory_for_first_sync(root: Path, glob_pattern: str, *, allow_empty: bool) -> tuple[str, dict[str, Any] | None]:
     if allow_empty:
         return glob_pattern, None
     if root.exists() and not root.is_dir():
         return glob_pattern, None
-    if _directory_contains_syncable_lua(root):
-        return glob_pattern, None
+    if root.exists():
+        try:
+            _, paths = _directory_sync_file_paths(str(root), glob_pattern)
+        except BedWarsMcpError:
+            paths = []
+        if paths:
+            return glob_pattern, None
 
     prepared = prepare_directory_project(
         directory=str(root),
@@ -1470,12 +1456,22 @@ def connect_sync(
     glob_pattern: str = "",
     watch: bool = True,
     allow_empty: bool = False,
+    probe: bool = True,
+    probe_message: str = "",
 ) -> dict[str, Any]:
     """Connect a BedWars Code Sync token and remember it in MCP memory for later syncs."""
     root = str(_safe_directory_project_path(directory)) if directory.strip() else str(_hitreg_directory())
     root_path = _safe_directory_project_path(root)
-    selected_glob = glob_pattern.strip() or _read_bwconfig_sync_glob(root_path, "**/*.lua")
-    selected_glob, prepared = _prepare_directory_for_first_sync(root_path, selected_glob, allow_empty=allow_empty)
+    selected_glob = glob_pattern.strip() or "scripts/**/*.lua"
+    prepared = None
+    if not allow_empty:
+        prepared = prepare_directory_project(
+            directory=str(root_path),
+            prompt=f"BedWars Creative project for {root_path.name}",
+        )
+    selected_glob, fallback_prepared = _prepare_directory_for_first_sync(root_path, selected_glob, allow_empty=allow_empty)
+    prepared = prepared or fallback_prepared
+    probe_result = _write_sync_probe(root_path, probe_message) if probe and not allow_empty else None
     result = _sync_directory_with_token(sync_token, str(root_path), selected_glob, allow_empty=allow_empty)
     _store_sync_session(sync_token, result)
     watcher_started = _start_sync_watcher() if watch and result.get("ok") else False
@@ -1490,6 +1486,7 @@ def connect_sync(
         "uploaded_files": result.get("uploaded_files"),
         "file_count": result.get("file_count"),
         "prepared": prepared,
+        "probe": probe_result,
         "token_stored_in_memory_only": True,
     }
 
@@ -1553,15 +1550,32 @@ def sync_directory(
     directory: str,
     glob_pattern: str = "",
     allow_empty: bool = False,
+    probe: bool = True,
+    probe_message: str = "",
+    watch: bool = True,
 ) -> dict[str, Any]:
     """Upload .lua files from any local directory to BedWars Code Sync."""
     root = _safe_directory_project_path(directory)
-    selected_glob = glob_pattern.strip() or _read_bwconfig_sync_glob(root, "**/*.lua")
-    selected_glob, prepared = _prepare_directory_for_first_sync(root, selected_glob, allow_empty=allow_empty)
+    selected_glob = glob_pattern.strip() or "scripts/**/*.lua"
+    prepared = None
+    if not allow_empty:
+        prepared = prepare_directory_project(
+            directory=str(root),
+            prompt=f"BedWars Creative project for {root.name}",
+        )
+    selected_glob, fallback_prepared = _prepare_directory_for_first_sync(root, selected_glob, allow_empty=allow_empty)
+    prepared = prepared or fallback_prepared
+    probe_result = _write_sync_probe(root, probe_message) if probe and not allow_empty else None
     result = _sync_directory_with_token(sync_token, str(root), selected_glob, allow_empty=allow_empty)
     _store_sync_session(sync_token, result)
+    watcher_started = _start_sync_watcher() if watch and result.get("ok") else False
     if prepared:
         result["prepared"] = prepared
+    result["probe"] = probe_result
+    result["connected"] = bool(result.get("ok"))
+    result["watcher_running"] = bool(SYNC_SESSION.get("watcher_running"))
+    result["watcher_started"] = watcher_started
+    result["token_stored_in_memory_only"] = True
     return result
 
 
