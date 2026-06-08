@@ -31,7 +31,6 @@ DOCS_CACHE_DIR = PROJECT_ROOT / "docs_cache"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 PROJECTS_DIR = SCRIPTS_DIR / "projects"
 DEFAULT_PROJECT_NAME = "default"
-DEFAULT_PROJECT_SYNC_GLOB = f"projects/{DEFAULT_PROJECT_NAME}/sync/*.lua"
 CODE_SYNC_BASE_URL = "https://rblx-bedwars-sync-service-o6h4tsr73a-uc.a.run.app"
 SYNC_SESSION: dict[str, Any] = {}
 SYNC_LOCK = threading.RLock()
@@ -300,52 +299,6 @@ def _code_without_lua_strings_or_comments(code: str) -> str:
     return LUA_STRING_OR_COMMENT_RE.sub(" ", code)
 
 
-def _sync_file_paths(glob_pattern: str) -> list[Path]:
-    pattern = (glob_pattern or "**/*.lua").strip()
-    if not pattern:
-        pattern = "**/*.lua"
-    if Path(pattern).is_absolute() or ".." in Path(pattern).parts:
-        raise BedWarsMcpError("glob_pattern must stay inside scripts/ and cannot use absolute paths or '..'.")
-
-    scripts_root = SCRIPTS_DIR.resolve()
-    paths: list[Path] = []
-    seen: set[Path] = set()
-    for candidate in SCRIPTS_DIR.glob(pattern):
-        if not candidate.is_file() or candidate.suffix.casefold() != ".lua":
-            continue
-        if candidate.name.casefold() == "bwconfig.lua":
-            continue
-        resolved = candidate.resolve()
-        if resolved != scripts_root and scripts_root not in resolved.parents:
-            continue
-        if resolved not in seen:
-            paths.append(resolved)
-            seen.add(resolved)
-
-    return sorted(paths)
-
-
-def _project_sync_file_paths(project_name: str, glob_pattern: str) -> list[Path]:
-    project_sync_dir = _project_dir(project_name) / "sync"
-    project_sync_root = project_sync_dir.resolve()
-    pattern = (glob_pattern or "*.lua").strip() or "*.lua"
-    if Path(pattern).is_absolute() or ".." in Path(pattern).parts:
-        raise BedWarsMcpError("glob_pattern must stay inside the project's sync/ folder.")
-
-    paths: list[Path] = []
-    seen: set[Path] = set()
-    for candidate in project_sync_dir.glob(pattern):
-        if not candidate.is_file() or candidate.suffix.casefold() != ".lua":
-            continue
-        resolved = candidate.resolve()
-        if resolved != project_sync_root and project_sync_root not in resolved.parents:
-            continue
-        if resolved not in seen:
-            paths.append(resolved)
-            seen.add(resolved)
-    return sorted(paths)
-
-
 def _directory_sync_file_paths(directory: str, glob_pattern: str) -> tuple[Path, list[Path]]:
     if not directory or not directory.strip():
         raise BedWarsMcpError("directory is required.")
@@ -388,10 +341,6 @@ def _read_bwconfig_sync_glob(root: Path, default: str) -> str:
     if not match:
         return default
     return match.group(1).strip() or default
-
-
-def _hitreg_directory() -> Path:
-    return Path.home() / "Downloads" / "HitReg"
 
 
 def _lua_quote(text: str) -> str:
@@ -1076,8 +1025,8 @@ def create_project(project_name: str = DEFAULT_PROJECT_NAME, prompt: str = "") -
         "prompt_file": "prompts/brief.md",
         "sync_glob": "*.lua",
         "notes": [
-            "Only files in sync/ are uploaded by sync_project.",
-            "Use drafts/ for working notes or scripts you do not want to upload yet.",
+            "Repo-managed projects are local organization helpers.",
+            "For Roblox Code Sync, prefer directory project tools with sync_directory or connect_sync.",
         ],
     }
     manifest_path = project_dir / "project.json"
@@ -1162,38 +1111,6 @@ def delete_project_script(
         }
     )
     return result
-
-
-@bedwars_tool
-def sync_project(
-    sync_token: str,
-    project_name: str = DEFAULT_PROJECT_NAME,
-    glob_pattern: str = "*.lua",
-) -> dict[str, Any]:
-    """Upload one organized project's sync/*.lua files to BedWars Code Sync."""
-    name = _safe_project_name(project_name)
-    project_dir = _project_dir(name)
-    if not project_dir.exists():
-        raise BedWarsMcpError(f"Project not found: {name}. Create it first with create_project.")
-    sync_dir = project_dir / "sync"
-    paths = _project_sync_file_paths(name, glob_pattern)
-    result = _post_sync_files(sync_token, paths, upload_root=sync_dir)
-    result["project_name"] = name
-    result["sync_dir"] = str(sync_dir)
-    return result
-
-
-@bedwars_tool
-def sync_scripts(sync_token: str, glob_pattern: str = DEFAULT_PROJECT_SYNC_GLOB) -> dict[str, Any]:
-    """Upload local scripts/*.lua files to BedWars Code Sync using a user-provided sync token."""
-    paths = _sync_file_paths(glob_pattern)
-    if not paths:
-        raise BedWarsMcpError(f"No .lua files matched inside scripts/ for glob_pattern: {glob_pattern}")
-
-    upload_root = SCRIPTS_DIR
-    if glob_pattern == DEFAULT_PROJECT_SYNC_GLOB:
-        upload_root = _project_dir(DEFAULT_PROJECT_NAME) / "sync"
-    return _post_sync_files(sync_token, paths, upload_root=upload_root)
 
 
 @bedwars_tool
@@ -1390,66 +1307,6 @@ def delete_directory_script(
 
 
 @bedwars_tool
-def sync_hitreg(
-    sync_token: str = "",
-    main_code: str = "",
-    overwrite_main: bool = False,
-) -> dict[str, Any]:
-    """Prepare and sync the current user's Downloads/HitReg folder in one call."""
-    directory = _hitreg_directory()
-    token = sync_token.strip() or str(SYNC_SESSION.get("sync_token") or "")
-    if not token:
-        raise BedWarsMcpError("No sync token provided or connected. Call connect_sync first or pass sync_token.")
-
-    if main_code.strip() or overwrite_main:
-        prepared = prepare_directory_project(
-            directory=str(directory),
-            prompt="HitReg BedWars Creative project",
-            main_code=main_code,
-            overwrite_main=overwrite_main,
-        )
-    else:
-        scripts_dir = directory / "scripts"
-        drafts_dir = directory / "drafts"
-        prompts_dir = directory / "prompts"
-        for path in (scripts_dir, drafts_dir, prompts_dir):
-            path.mkdir(parents=True, exist_ok=True)
-
-        prompt_file = prompts_dir / "brief.md"
-        if not prompt_file.exists():
-            prompt_file.write_text("HitReg BedWars Creative project\n", encoding="utf-8")
-
-        manifest = {
-            "sync_dir": "scripts",
-            "drafts_dir": "drafts",
-            "prompt_file": "prompts/brief.md",
-            "sync_glob": "scripts/**/*.lua",
-            "notes": [
-                "sync_hitreg syncs existing files only.",
-                "Deleted scripts are not recreated unless main_code or overwrite_main is provided.",
-            ],
-        }
-        manifest_path = directory / "bedwars-project.json"
-        manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
-
-        prepared = {
-            "directory": str(directory),
-            "scripts_dir": str(scripts_dir),
-            "drafts_dir": str(drafts_dir),
-            "prompt_file": str(prompt_file),
-            "manifest": str(manifest_path),
-            "main_script_written": False,
-        }
-    synced = _sync_directory_with_token(token, str(directory), "scripts/**/*.lua", allow_empty=True)
-    _store_sync_session(token, synced)
-    return {
-        "directory": str(directory),
-        "prepared": prepared,
-        "sync": synced,
-    }
-
-
-@bedwars_tool
 def connect_sync(
     sync_token: str,
     directory: str = "",
@@ -1460,9 +1317,13 @@ def connect_sync(
     probe_message: str = "",
 ) -> dict[str, Any]:
     """Connect a BedWars Code Sync token and remember it in MCP memory for later syncs."""
-    root = str(_safe_directory_project_path(directory)) if directory.strip() else str(_hitreg_directory())
-    root_path = _safe_directory_project_path(root)
-    selected_glob = glob_pattern.strip() or "scripts/**/*.lua"
+    if not directory.strip():
+        existing_directory = str(SYNC_SESSION.get("directory") or "")
+        if not existing_directory:
+            raise BedWarsMcpError("directory is required for the first connect_sync call.")
+        directory = existing_directory
+    root_path = _safe_directory_project_path(directory)
+    selected_glob = glob_pattern.strip() or _read_bwconfig_sync_glob(root_path, "scripts/**/*.lua")
     prepared = None
     if not allow_empty:
         prepared = prepare_directory_project(
@@ -1556,7 +1417,7 @@ def sync_directory(
 ) -> dict[str, Any]:
     """Upload .lua files from any local directory to BedWars Code Sync."""
     root = _safe_directory_project_path(directory)
-    selected_glob = glob_pattern.strip() or "scripts/**/*.lua"
+    selected_glob = glob_pattern.strip() or _read_bwconfig_sync_glob(root, "scripts/**/*.lua")
     prepared = None
     if not allow_empty:
         prepared = prepare_directory_project(
@@ -1594,9 +1455,7 @@ def force_sync_directory(
         directory=str(root),
         prompt=f"BedWars Creative project for {root.name}",
     )
-    selected_glob = glob_pattern.strip() or "scripts/**/*.lua"
-    if not selected_glob.strip():
-        selected_glob = "scripts/**/*.lua"
+    selected_glob = glob_pattern.strip() or _read_bwconfig_sync_glob(root, "scripts/**/*.lua")
 
     probe_result = _write_sync_probe(root, probe_message) if probe else None
     result = _sync_directory_with_token(sync_token, str(root), selected_glob, allow_empty=False)

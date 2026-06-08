@@ -86,19 +86,7 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "name": "delete_project_script",
         "category": "projects",
         "description": "Delete a Lua script from a repo project's sync/ or drafts/ folder, optionally archiving it first.",
-        "context": "After deleting from sync/, call sync_project so the remote editor receives the updated file set.",
-    },
-    "sync_project": {
-        "name": "sync_project",
-        "category": "sync",
-        "description": "Upload one repo-managed project's sync/ Lua files using a Code Sync token.",
-        "context": "Use with a fresh token from the editor Sync tab. The token is used for the request and is not returned.",
-    },
-    "sync_scripts": {
-        "name": "sync_scripts",
-        "category": "sync",
-        "description": "Upload matching repo-local scripts using a safe scripts/ rooted glob.",
-        "context": "Use for legacy repo-local sync flows. For outside folders, prefer sync_directory.",
+        "context": "Repo project folders are local organization helpers. For active Roblox Code Sync, use directory project tools and sync_directory/connect_sync on the user folder.",
     },
     "prepare_directory_project": {
         "name": "prepare_directory_project",
@@ -130,17 +118,11 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Delete a Lua script from an outside folder project's scripts/ or drafts/ folder, optionally archiving it first.",
         "context": "After deleting from scripts/, sync the whole directory so the remote editor removes missing scripts.",
     },
-    "sync_hitreg": {
-        "name": "sync_hitreg",
-        "category": "sync",
-        "description": "Prepare and sync the default HitReg folder under the current user's Downloads directory.",
-        "context": "Use when the user says HitReg without giving another folder. Reads bwconfig.lua syncGlob when present.",
-    },
     "connect_sync": {
         "name": "connect_sync",
         "category": "connected sync",
         "description": "Store a Code Sync token in memory for one folder, preparing and probing before the first upload.",
-        "context": "Use after the user provides a fresh Sync tab token and wants later syncs to reuse the same folder. By default this uploads scripts/**/*.lua and updates zz_sync_probe.lua unless allow_empty=true.",
+        "context": "Use after the user provides a fresh Sync tab token and a project directory. By default this reads bwconfig.lua syncGlob, uploads scripts/**/*.lua when no config exists, and updates zz_sync_probe.lua unless allow_empty=true.",
     },
     "sync_connected": {
         "name": "sync_connected",
@@ -176,7 +158,7 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "name": "sync_directory",
         "category": "sync",
         "description": "Upload an outside folder using the visible hard-sync path by default.",
-        "context": "Use for project folders outside this repo. By default this prepares scripts/, updates zz_sync_probe.lua, uploads scripts/**/*.lua, and connects the watcher. Use allow_empty=true for intentional delete-all syncs.",
+        "context": "Use for project folders outside this repo. By default this prepares scripts/, updates zz_sync_probe.lua, reads bwconfig.lua syncGlob when present, uploads scripts/**/*.lua otherwise, and connects the watcher. Use allow_empty=true for intentional delete-all syncs.",
     },
     "force_sync_directory": {
         "name": "force_sync_directory",

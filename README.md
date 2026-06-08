@@ -33,9 +33,9 @@ The server uses the Python MCP SDK package `mcp`. Codex/Claude starts the MCP se
 src/creative_scripting_mcp/  # MCP runtime package
   server.py                  # FastMCP server and tool implementations
   tools.py                   # Public tool names, descriptions, and context
-maintenance/                 # local helper scripts for docs refresh/watch jobs
+maintenance/                 # local helper scripts for docs refresh jobs
 docs_cache/                  # cached official API references
-scripts/                     # Lua examples and repo-managed sync projects
+scripts/                     # Lua examples and optional local project files
 server.py                    # thin compatibility entry point
 tools.py                     # thin compatibility re-export
 ```
@@ -82,25 +82,17 @@ Ask the MCP client to list tools for exact schemas.
 
 ## BedWars Code Sync
 
-Use organized project folders so Roblox only receives the scripts you intend to sync:
+Use normal project folders so Roblox only receives the scripts you intend to sync:
 
 ```text
-scripts/projects/default/
-  sync/       # uploaded to BedWars
-  drafts/     # local-only work in progress
-  prompts/    # project brief / build notes
-  project.json
+C:\path\to\your-project\
+  scripts\    # uploaded to BedWars
+  drafts\     # local-only work in progress
+  prompts\    # project brief / build notes
+  bwconfig.lua
 ```
 
-Generate a token in the `Sync` tab of the BedWars script editor, then call:
-
-```text
-sync_project(sync_token="{sync-token}", project_name="default")
-```
-
-The token is sent to Easy.gg's Code Sync endpoint for that request only. The MCP does not save it or return it in tool output. By default, only `.lua` files in `scripts/projects/default/sync/` are uploaded. Keep examples and drafts outside `sync/` unless you want them to appear in the Roblox editor.
-
-To sync a folder outside this MCP repo, pass the folder as the upload root:
+Generate a token in the `Sync` tab of the BedWars script editor, then connect the folder:
 
 ```text
 connect_sync(
@@ -113,7 +105,9 @@ connect_sync(
 sync_connected()
 ```
 
-When `watch=true`, the MCP keeps the token in memory and polls the connected folder for saved, deleted, or renamed `.lua` files. When the file set changes, it syncs the whole current folder, matching the VS Code extension's connected-session behavior.
+The token is sent to Easy.gg's Code Sync endpoint and kept only in MCP memory for the current running server process. It is not saved or returned in tool output.
+
+When `watch=true`, the MCP polls the connected folder for saved, deleted, or renamed `.lua` files. When the file set changes, it syncs the whole current folder, matching the VS Code extension's connected-session behavior.
 
 The MCP also reads the VS Code extension's `bwconfig.lua` format when no glob is provided:
 
@@ -123,19 +117,7 @@ return {
 }
 ```
 
-For a persistent local HitReg watcher process:
-
-```text
-python maintenance/watch_hitreg_sync.py {sync-token}
-```
-
-For a one-shot HitReg sync:
-
-```text
-sync_hitreg(sync_token="{sync-token}")
-```
-
-For other folders:
+For one-shot folder syncs:
 
 ```text
 read_directory_project(directory="C:\\path\\to\\your-project")
@@ -169,11 +151,11 @@ This does the same hard-sync steps explicitly.
 To remove a script from BedWars, delete it locally and sync the whole containing folder/project:
 
 ```text
-delete_project_script(project_name="default", file_name="old_script.lua", sync=true)
-sync_project(sync_token="{sync-token}", project_name="default")
+delete_directory_script(directory="C:\\path\\to\\your-project", file_name="old_script.lua", sync=true)
+sync_directory(sync_token="{sync-token}", directory="C:\\path\\to\\your-project")
 ```
 
-Deleted scripts are archived under `.deleted/` by default. Sync the whole folder/project after deleting so BedWars receives the current file set and removes scripts that are no longer present.
+Deleted scripts are archived under `.deleted/` by default. Sync the whole folder after deleting so BedWars receives the current file set and removes scripts that are no longer present.
 
 When deleting the final script in a folder, sync with `allow_empty=true` so the empty file set is sent to BedWars.
 
