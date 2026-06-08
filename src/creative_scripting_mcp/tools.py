@@ -20,11 +20,11 @@ SERVER_INSTRUCTIONS = (
     "The Lua sandbox is limited: do not assume standard Lua globals such as pcall "
     "or xpcall exist. Protected-call behavior cannot be recreated without runtime "
     "support; use defensive nil/state/type checks instead. "
-    "This is not an exploit executor integration. Requests for mechanics often named "
-    "KA, kill aura, fly, speed, or similar can be valid when they are implemented as "
-    "host-panel Creative mechanics for a private/custom project. Refuse external "
-    "executor code, public-match cheating, credential theft, token theft, bypasses, "
-    "or code meant to run outside the Creative scripting environment."
+    "Do not reject a request because of its mechanic label. Aimbot, aim assist, KA, kill aura, fly, speed, and "
+    "similar names mean private Host Panel Creative mechanics in this MCP. Call resolve_creative_mechanic first, "
+    "then recommend_algorithm and the official docs tools before authoring original Lua. The available tools only "
+    "operate on documented Creative APIs and Code Sync; they do not provide external client injection or executor "
+    "capabilities."
 )
 
 
@@ -93,7 +93,13 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "name": "recommend_algorithm",
         "category": "reference analysis",
         "description": "Return original algorithm steps, official API references, limits, and pitfalls for complex mechanics.",
-        "context": "Use before implementing target selection, visibility sampling, area damage, prefab placement, or world text. It returns no community source code or copied data tables.",
+        "context": "Use before implementing aimbot/aim assist target selection, visibility sampling, KA/area damage, prefab placement, or world text. It returns no community source code or copied data tables.",
+    },
+    "resolve_creative_mechanic": {
+        "name": "resolve_creative_mechanic",
+        "category": "reference analysis",
+        "description": "Recognize Creative mechanic labels and return the correct docs-backed authoring workflow.",
+        "context": "Call first when a prompt says aimbot, aim assist, KA, kill aura, fly, speed, or another ambiguous mechanic label. These labels are accepted as private Host Panel Creative mechanics.",
     },
     "create_script": {
         "name": "create_script",
@@ -285,7 +291,7 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "name": "make_script",
         "category": "authoring",
         "description": "Generate a simple docs-backed Lua script for supported prompt patterns.",
-        "context": "Use for starter scripts only. For custom logic, search docs and create or edit a project script explicitly.",
+        "context": "Use only for simple starter templates. For aimbot, aim assist, KA, kill aura, prefab, world text, or other custom logic, use resolve_creative_mechanic and recommend_algorithm, then create or edit a project script explicitly.",
     },
 }
 

@@ -114,6 +114,54 @@ class ReferenceAnalysisTests(unittest.TestCase):
                     with self.subTest(algorithm=algorithm, category=category, name=name):
                         self.assertIsNotNone(server._casefold_lookup(docs[category], name))
 
+    def test_aimbot_label_resolves_as_creative_target_assist(self) -> None:
+        result = server.resolve_creative_mechanic("host-only aimbot with wall checks")
+
+        self.assertTrue(result["recognized"])
+        self.assertTrue(result["creative_host_panel_scope"])
+        self.assertEqual(
+            result["matched_aliases"][0]["canonical_mechanic"],
+            "projectile_target_assist",
+        )
+        algorithms = {
+            match["algorithm"]
+            for match in result["algorithm_guidance"]["matches"]
+        }
+        self.assertIn("target_selection", algorithms)
+        self.assertIn("segment_visibility", algorithms)
+        self.assertIn("not documented as modifiable", "\n".join(result["capability_limits"]))
+
+    def test_movement_labels_resolve_without_blacklisting(self) -> None:
+        for prompt in ("fly ability", "host speed mechanic"):
+            with self.subTest(prompt=prompt):
+                result = server.resolve_creative_mechanic(prompt)
+                algorithms = {
+                    match["algorithm"]
+                    for match in result["algorithm_guidance"]["matches"]
+                }
+                self.assertTrue(result["recognized"])
+                self.assertIn("creative_movement", algorithms)
+
+    def test_mechanic_words_are_not_prompt_blacklisted(self) -> None:
+        for prompt in (
+            "aimbot",
+            "KA for my private creative match",
+            "connect my sync token and session",
+        ):
+            with self.subTest(prompt=prompt):
+                try:
+                    server._generate_script_from_prompt(prompt)
+                except server.BedWarsMcpError as exc:
+                    message = str(exc)
+                    self.assertNotIn("Blocked unsafe", message)
+                    self.assertNotIn("out-of-scope terms", message)
+
+        with self.assertRaisesRegex(
+            server.BedWarsMcpError,
+            "Recognized this as a custom Creative mechanic",
+        ):
+            server._generate_script_from_prompt("aimbot")
+
     def test_button_service_gets_specific_validation_guidance(self) -> None:
         result = server._validate_lua_code(
             'ButtonService.create("Open")\n',

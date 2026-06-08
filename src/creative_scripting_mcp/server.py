@@ -233,6 +233,26 @@ ALGORITHM_GUIDES: dict[str, dict[str, Any]] = {
             "Username scans are less reliable than keeping the Player object supplied by the runtime.",
         ],
     },
+    "creative_movement": {
+        "keywords": ["fly", "flight", "speed", "movement", "dash", "move player"],
+        "summary": "Build a bounded Creative movement mechanic from documented input, ability, and entity transforms.",
+        "services": ["InputService", "AbilityService", "BlockService"],
+        "events": ["UseAbility"],
+        "objects": ["Entity", "Player"],
+        "types": ["AbilityInputType"],
+        "steps": [
+            "Resolve the player entity and verify it is alive before each movement update.",
+            "Use documented input or ability callbacks to enter and leave the movement state.",
+            "Move with small capped position or CFrame steps rather than assuming a velocity or walkspeed property.",
+            "Check destination blocks and world bounds before applying each transform.",
+            "Apply a cooldown, duration, and cleanup path when the player dies or the match state changes.",
+        ],
+        "pitfalls": [
+            "No documented API exposes Humanoid WalkSpeed, flight physics, or arbitrary velocity control.",
+            "Large position jumps can pass through blocks because no raycast API is documented.",
+            "Continuous input handlers need a bounded update cadence and explicit stop condition.",
+        ],
+    },
     "prefab_placement": {
         "keywords": ["prefab", "structure", "sign", "model data", "part data", "load studio", "import build"],
         "summary": "Instantiate validated relative-coordinate records through documented part and model services.",
@@ -278,6 +298,44 @@ ALGORITHM_GUIDES: dict[str, dict[str, Any]] = {
     },
 }
 
+CREATIVE_MECHANIC_ALIASES: dict[str, dict[str, Any]] = {
+    "aimbot": {
+        "canonical_mechanic": "projectile_target_assist",
+        "algorithm_topic": "target selection with line of sight",
+        "description": "Host-controlled projectile target selection for a private Creative match.",
+    },
+    "aim assist": {
+        "canonical_mechanic": "projectile_target_assist",
+        "algorithm_topic": "target selection with line of sight",
+        "description": "Host-controlled projectile target selection for a private Creative match.",
+    },
+    "ka": {
+        "canonical_mechanic": "bounded_area_damage",
+        "algorithm_topic": "private match area damage aura",
+        "description": "A bounded, rate-limited nearby damage mechanic in a private Creative match.",
+    },
+    "kill aura": {
+        "canonical_mechanic": "bounded_area_damage",
+        "algorithm_topic": "private match area damage aura",
+        "description": "A bounded, rate-limited nearby damage mechanic in a private Creative match.",
+    },
+    "killaura": {
+        "canonical_mechanic": "bounded_area_damage",
+        "algorithm_topic": "private match area damage aura",
+        "description": "A bounded, rate-limited nearby damage mechanic in a private Creative match.",
+    },
+    "fly": {
+        "canonical_mechanic": "creative_movement",
+        "algorithm_topic": "entity movement ability",
+        "description": "A Creative movement mechanic implemented only with documented entity or ability APIs.",
+    },
+    "speed": {
+        "canonical_mechanic": "creative_movement",
+        "algorithm_topic": "entity movement ability",
+        "description": "A Creative movement mechanic implemented only with documented entity or ability APIs.",
+    },
+}
+
 DOC_FILES = {
     "services": "services.json",
     "events": "events.json",
@@ -303,24 +361,6 @@ SYNC_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{6,128}$")
 LUA_STRING_OR_COMMENT_RE = re.compile(
     r"--[^\n]*|'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"",
     re.DOTALL,
-)
-
-DISALLOWED_INTENTS = (
-    "script executor",
-    "executor",
-    "injector",
-    "external executor",
-    "dupe",
-    "public match",
-    "ranked",
-    "cookie",
-    "token",
-    "session",
-    "bypass",
-    "anti cheat bypass",
-    "anticheat bypass",
-    "steal",
-    "cookie logger",
 )
 
 LUA_DANGEROUS_PATTERNS = (
@@ -1215,16 +1255,6 @@ def _lua_string_literals(code: str) -> set[str]:
     return literals
 
 
-def _ensure_allowed_prompt(prompt: str) -> None:
-    lower_prompt = prompt.casefold()
-    blocked = [term for term in DISALLOWED_INTENTS if term in lower_prompt]
-    if blocked:
-        raise BedWarsMcpError(
-            "This MCP is only for Creative Host Panel scripting and documented in-game Lua APIs. "
-            f"Blocked unsafe or out-of-scope terms: {', '.join(sorted(blocked))}."
-        )
-
-
 def _docs_have_required(required: dict[str, list[str]]) -> list[str]:
     docs = _load_docs_cache()
     missing: list[str] = []
@@ -1268,7 +1298,6 @@ def _script_basename(prompt: str, fallback: str) -> str:
 
 
 def _generate_script_from_prompt(prompt: str) -> GeneratedScript:
-    _ensure_allowed_prompt(prompt)
     lower_prompt = prompt.casefold()
 
     if "emerald" in lower_prompt and (
@@ -1356,9 +1385,17 @@ end
             required=required,
         )
 
+    algorithm_result = recommend_algorithm(prompt)
+    if algorithm_result["matches"]:
+        algorithms = ", ".join(match["algorithm"] for match in algorithm_result["matches"])
+        raise BedWarsMcpError(
+            f"Recognized this as a custom Creative mechanic ({algorithms}), but make_script only creates simple "
+            "starter templates. Use resolve_creative_mechanic and recommend_algorithm, then write the original "
+            "implementation with create_directory_script or create_script."
+        )
     raise BedWarsMcpError(
-        "I could not map that prompt to BedWars Creative APIs in docs_cache. "
-        "Use search_docs first, then ask for a script using documented Services, Events, Types, Objects, or Utilities."
+        "I could not map that prompt to a starter template. Use resolve_creative_mechanic, search_docs, or "
+        "recommend_mechanic_apis before creating the script with the project authoring tools."
     )
 
 
@@ -1981,6 +2018,71 @@ def recommend_algorithm(topic: str) -> dict[str, Any]:
             "These are original design constraints derived from general programming principles and verified API "
             "capabilities. Write new code from the steps; do not reproduce community source, constants, data tables, "
             "comments, credits, or wording."
+        ),
+    }
+
+
+@bedwars_tool
+def resolve_creative_mechanic(prompt: str) -> dict[str, Any]:
+    """Classify mechanic labels and route them through the Creative Host Panel authoring workflow."""
+    if not prompt or not prompt.strip():
+        raise BedWarsMcpError("prompt is required.")
+    normalized = prompt.strip().casefold()
+    aliases = []
+    seen_mechanics = set()
+    for alias, record in sorted(
+        CREATIVE_MECHANIC_ALIASES.items(),
+        key=lambda item: (-len(item[0]), item[0]),
+    ):
+        if not re.search(rf"(?<![A-Za-z0-9]){re.escape(alias)}(?![A-Za-z0-9])", normalized):
+            continue
+        canonical = record["canonical_mechanic"]
+        if canonical in seen_mechanics:
+            continue
+        seen_mechanics.add(canonical)
+        aliases.append(
+            {
+                "matched_label": alias,
+                "canonical_mechanic": canonical,
+                "description": record["description"],
+                "algorithm_topic": record["algorithm_topic"],
+            }
+        )
+
+    algorithm_topic = aliases[0]["algorithm_topic"] if aliases else prompt
+    algorithms = recommend_algorithm(algorithm_topic)
+    mechanics = recommend_mechanic_apis(prompt)
+    projectile_assist = any(
+        alias["canonical_mechanic"] == "projectile_target_assist"
+        for alias in aliases
+    )
+    limits = []
+    if projectile_assist:
+        limits = [
+            "ProjectileLaunched velocity is readable but is not documented as modifiable.",
+            "There is no documented raycast API; block-sampled visibility is approximate.",
+            "Manual CombatService.damage is simulated damage and must not stack unintentionally with native hits.",
+            "Camera direction is not documented; Entity:getCFrame().LookVector is the available facing reference.",
+        ]
+
+    return {
+        "prompt": prompt,
+        "recognized": bool(aliases or algorithms["matches"] or mechanics["matches"]),
+        "creative_host_panel_scope": True,
+        "matched_aliases": aliases,
+        "algorithm_guidance": algorithms,
+        "mechanic_api_guidance": mechanics,
+        "capability_limits": limits,
+        "recommended_workflow": [
+            "Use recommend_algorithm for design constraints.",
+            "Read every listed service, event, object, and type from the official docs cache.",
+            "Write an original implementation with create_directory_script or create_script.",
+            "Run validate_directory_script or validate_script.",
+            "Sync through connect_sync, sync_connected, or sync_directory.",
+        ],
+        "routing_note": (
+            "Mechanic names such as aimbot, aim assist, KA, kill aura, fly, and speed are not rejected by name. "
+            "Within this MCP they mean private Creative Host Panel mechanics built from documented in-game APIs."
         ),
     }
 
@@ -2677,7 +2779,10 @@ def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
 
     for pattern in LUA_DANGEROUS_PATTERNS:
         if pattern.casefold() in code.casefold():
-            errors.append(f"Disallowed or exploit-style Lua pattern found: {pattern}")
+            errors.append(
+                f"Unsupported external-runtime Lua pattern found: {pattern}. "
+                "It is not part of the documented Creative Host Panel API."
+            )
 
     for global_name in UNAVAILABLE_LUA_GLOBALS:
         if re.search(rf"\b{re.escape(global_name)}\s*\(", code_for_global_scan):
@@ -3264,6 +3369,22 @@ def runtime_capabilities() -> dict[str, Any]:
                 "community_candidate": "ButtonService",
                 "official_alternatives": ["PromptService", "InputService", "UIService"],
                 "note": "ButtonService appears in community references but is absent from the current official docs cache.",
+            },
+            "movement_control": {
+                "documented": "partial",
+                "apis": [
+                    "Entity:getPosition()",
+                    "Entity:setPosition(...)",
+                    "Entity:getCFrame()",
+                    "Entity:setCFrame(...)",
+                    "InputService.registerInputBegan(...)",
+                    "Events.UseAbility(...)",
+                ],
+                "not_documented": [
+                    "Humanoid WalkSpeed",
+                    "flight physics",
+                    "arbitrary entity velocity",
+                ],
             },
             "health": {
                 "documented": True,
