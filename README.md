@@ -128,7 +128,7 @@ sync_directory(
 )
 ```
 
-By default, `sync_directory` and `connect_sync` use the visible hard-sync path: they prepare `scripts/`, `drafts/`, `prompts/`, `bwconfig.lua`, `bedwars-project.json`, and `scripts/main.lua` when needed, update `scripts/zz_sync_probe.lua`, upload `scripts/**/*.lua`, and connect the watcher. Uploads match the official VS Code extension's multipart filename, content type, and request headers, then repeat once after a short delay to confirm delivery to the active Roblox editor session.
+By default, `sync_directory` and `connect_sync` upload only the Lua scripts already in the project. They do not create `main.lua` or `zz_sync_probe.lua`. Exact helper files left by older MCP versions are removed automatically during normal sync. Uploads match the official VS Code extension's multipart filename, content type, and request headers, then repeat once after a short delay to confirm delivery to the active Roblox editor session.
 
 BedWars rejects a truly empty multipart upload with `File is required`. For intentional delete-all syncs, use `allow_empty=true`. The MCP sends an in-memory zero-byte file named `.lua`; the request still contains the required file part, while the empty Lua basename clears the remote script set. Nothing is written to the project folder.
 
@@ -137,7 +137,7 @@ For normal project work, use MCP tools instead of terminal file scans:
 - `read_directory_project` to inspect folder state, scripts, prompt, and config.
 - `read_directory_script` to read a project Lua file.
 - `create_directory_script` to write scripts under `scripts/`.
-- `sync_directory` for the strongest first sync.
+- `sync_directory` for normal sync without generated scripts.
 
 If the HTTP upload succeeds but the Roblox editor does not visibly refresh, use the explicit hard-sync tool:
 
@@ -148,7 +148,7 @@ force_sync_directory(
 )
 ```
 
-This does the same hard-sync steps explicitly.
+This explicitly prepares the project and creates a visible probe. Use it only for first-sync troubleshooting.
 
 To remove a script from BedWars, delete it locally and sync the whole containing folder/project:
 

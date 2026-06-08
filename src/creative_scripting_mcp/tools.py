@@ -124,8 +124,8 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "connect_sync": {
         "name": "connect_sync",
         "category": "connected sync",
-        "description": "Store a Code Sync token in memory for one folder, preparing and probing before the first upload.",
-        "context": "Use after the user provides a fresh Sync tab token and a project directory. By default this reads bwconfig.lua syncGlob, uploads scripts/**/*.lua when no config exists, and updates zz_sync_probe.lua unless allow_empty=true.",
+        "description": "Store a Code Sync token in memory for one folder and upload its existing Lua scripts.",
+        "context": "Use after the user provides a fresh Sync tab token and a project directory. Normal use does not create main.lua or zz_sync_probe.lua. Set probe=true only when the user explicitly requests a visible sync test.",
     },
     "sync_connected": {
         "name": "sync_connected",
@@ -161,7 +161,7 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "name": "sync_directory",
         "category": "sync",
         "description": "Upload an outside folder using the confirmed VS Code extension-compatible sync path.",
-        "context": "Use for project folders outside this repo. It prepares scripts/, updates zz_sync_probe.lua, reads bwconfig.lua syncGlob when present, sends extension-compatible multipart uploads twice for delivery confirmation, and connects the watcher. For delete-all, allow_empty=true sends an in-memory empty-basename .lua payload without creating a local placeholder.",
+        "context": "Use for project folders outside this repo. Normal use uploads only existing scripts and never creates main.lua or zz_sync_probe.lua. It removes exact helper files left by older MCP versions. Set probe=true only when explicitly requested. For delete-all, allow_empty=true sends an in-memory empty-basename .lua payload.",
     },
     "force_sync_directory": {
         "name": "force_sync_directory",

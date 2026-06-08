@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from inspect import signature
 from pathlib import Path
 from unittest.mock import patch
 
@@ -17,6 +18,30 @@ class FakeResponse:
 
 
 class SyncTransportTests(unittest.TestCase):
+    def test_normal_sync_does_not_generate_probes_by_default(self) -> None:
+        self.assertFalse(signature(server.sync_directory).parameters["probe"].default)
+        self.assertFalse(signature(server.connect_sync).parameters["probe"].default)
+
+    def test_generated_sync_helpers_are_removed_without_touching_user_scripts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            scripts = root / "scripts"
+            scripts.mkdir()
+            (scripts / "main.lua").write_text(server.GENERATED_MAIN_CODE, encoding="utf-8")
+            (scripts / "zz_sync_probe.lua").write_text(
+                server.GENERATED_PROBE_PREFIX + "-- Updated at now.\n",
+                encoding="utf-8",
+            )
+            user_script = scripts / "game.lua"
+            user_script.write_text('print("keep")\n', encoding="utf-8")
+
+            removed = server._remove_generated_sync_helpers(root)
+
+            self.assertEqual(removed, ["scripts/main.lua", "scripts/zz_sync_probe.lua"])
+            self.assertFalse((scripts / "main.lua").exists())
+            self.assertFalse((scripts / "zz_sync_probe.lua").exists())
+            self.assertEqual(user_script.read_text(encoding="utf-8"), 'print("keep")\n')
+
     def test_empty_directory_sync_uses_in_memory_delete_payload(self) -> None:
         def fake_post(sync_token: str, *, delivery_attempts: int = 2) -> dict[str, object]:
             return {
