@@ -171,6 +171,103 @@ def _short_snippet(record: dict[str, Any], query: str) -> str:
     return text[start:end]
 
 
+def _search_terms(text: str) -> list[str]:
+    spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", text)
+    return [term.casefold() for term in re.findall(r"[A-Za-z0-9_]+", spaced)]
+
+
+def _record_search_score(
+    category: str,
+    name: str,
+    record: dict[str, Any],
+    query_text: str,
+    query_terms: list[str],
+) -> int:
+    query_cf = query_text.casefold()
+    unique_terms = sorted(set(query_terms))
+    compact_query = "".join(unique_terms)
+    name_cf = name.casefold()
+    name_terms = set(_search_terms(name))
+    name_terms.add(name_cf)
+
+    keywords = record.get("keywords") or []
+    if not isinstance(keywords, list):
+        keywords = []
+    keyword_phrases = [str(keyword).casefold() for keyword in keywords]
+    keyword_text = "\n".join(keyword_phrases)
+    keyword_terms = set(_search_terms(keyword_text))
+
+    function_text_parts: list[str] = []
+    functions = record.get("functions") or []
+    if isinstance(functions, list):
+        for function in functions:
+            if isinstance(function, dict):
+                function_text_parts.extend(
+                    str(function.get(field) or "")
+                    for field in ("name", "signature", "notes")
+                )
+    function_text = "\n".join(function_text_parts).casefold()
+    function_terms = set(_search_terms(function_text))
+
+    primary_text = "\n".join(
+        str(record.get(field) or "")
+        for field in ("description", "source_name", "source_url")
+    ).casefold()
+    haystack = f"{name}\n{_json_text(record)}".casefold()
+
+    score = 0
+    if query_cf == name_cf or compact_query == name_cf:
+        score += 1000
+    elif query_cf in name_cf or compact_query in name_cf:
+        score += 300
+
+    if query_cf in keyword_phrases:
+        score += 250
+    elif query_cf in keyword_text:
+        score += 120
+    elif query_cf in primary_text:
+        score += 60
+    elif query_cf in haystack:
+        score += 10
+
+    matched_terms = 0
+    for term in unique_terms:
+        term_score = 0
+        if term in name_terms:
+            term_score += 100
+        elif term in name_cf:
+            term_score += 45
+
+        if term in keyword_terms:
+            term_score += 80
+        elif term in keyword_text:
+            term_score += 35
+
+        if term in function_terms:
+            term_score += 55
+        elif term in function_text:
+            term_score += 20
+
+        if term in primary_text:
+            term_score += 20
+        elif term in haystack:
+            term_score += 5
+
+        if term_score:
+            matched_terms += 1
+            score += term_score
+
+    if len(unique_terms) > 1:
+        score -= max(len(unique_terms) - matched_terms, 0) * 20
+
+    if category == "services" and keyword_terms and matched_terms:
+        score += 10
+
+    if not matched_terms and query_cf not in haystack:
+        return 0
+    return max(score, 0)
+
+
 def _entry_source(record: dict[str, Any]) -> dict[str, str | None]:
     return {
         "source_name": record.get("source_name"),
@@ -876,19 +973,36 @@ def search_docs(query: str) -> dict[str, Any]:
     if not query_terms:
         query_terms = [query_text.casefold()]
 
-    results: list[dict[str, Any]] = []
+    scored_results: list[tuple[int, int, str, dict[str, Any]]] = []
+    category_order = {
+        "services": 0,
+        "events": 1,
+        "types": 2,
+        "objects": 3,
+        "utilities": 4,
+    }
     for category, records in docs.items():
         for name, record in records.items():
-            haystack = f"{name}\n{_json_text(record)}".casefold()
-            if all(term in haystack for term in query_terms):
-                results.append(
+            record_dict = record if isinstance(record, dict) else {}
+            score = _record_search_score(category, name, record_dict, query_text, query_terms)
+            if score <= 0:
+                continue
+            scored_results.append(
+                (
+                    score,
+                    category_order.get(category, 99),
+                    name.casefold(),
                     {
                         "category": category,
                         "name": name,
-                        "snippet": _short_snippet(record if isinstance(record, dict) else {}, query_text),
-                        **_entry_source(record if isinstance(record, dict) else {}),
-                    }
+                        "snippet": _short_snippet(record_dict, query_text),
+                        **_entry_source(record_dict),
+                    },
                 )
+            )
+
+    scored_results.sort(key=lambda item: (-item[0], item[1], item[2]))
+    results = [result for _, _, _, result in scored_results]
 
     return {
         "query": query_text,

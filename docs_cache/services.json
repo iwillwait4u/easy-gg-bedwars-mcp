@@ -1,6 +1,18 @@
 {
   "AbilityService": {
     "description": "Service for creating and enabling abilities.",
+    "keywords": [
+      "ability",
+      "abilities",
+      "custom ability",
+      "skill",
+      "keybind",
+      "ability progress",
+      "cooldown",
+      "enable ability",
+      "remove ability",
+      "UseAbility"
+    ],
     "functions": [
       {
         "name": "createAbility",
@@ -59,6 +71,18 @@
   },
   "AnnouncementService": {
     "description": "Service for sending announcement messages.",
+    "keywords": [
+      "announcement",
+      "announce",
+      "server announcement",
+      "global announcement",
+      "colored announcement",
+      "banner",
+      "broadcast announcement",
+      "popup message",
+      "sendAnnouncement",
+      "all players"
+    ],
     "functions": [
       {
         "name": "sendAnnouncement",
@@ -77,6 +101,18 @@
   },
   "BlockService": {
     "description": "Service for placement and removal of blocks.",
+    "keywords": [
+      "block",
+      "blocks",
+      "place block",
+      "destroy block",
+      "remove block",
+      "terrain",
+      "floor",
+      "get block",
+      "nearby blocks",
+      "all blocks"
+    ],
     "functions": [
       {
         "name": "placeBlock",
@@ -136,6 +172,16 @@
   },
   "ChatService": {
     "description": "Service for sending chat messages.",
+    "keywords": [
+      "chat",
+      "chat message",
+      "public chat",
+      "global chat",
+      "send chat",
+      "sendMessage",
+      "player joined",
+      "player left"
+    ],
     "functions": [
       {
         "name": "sendMessage",
@@ -154,6 +200,17 @@
   },
   "CombatService": {
     "description": "Service for handling combat actions.",
+    "keywords": [
+      "combat",
+      "damage",
+      "heal",
+      "attack",
+      "hit",
+      "health",
+      "knockback",
+      "kill",
+      "hurt entity"
+    ],
     "functions": [
       {
         "name": "damage",
@@ -185,6 +242,15 @@
   },
   "DisasterService": {
     "description": "Service for starting disaster events.",
+    "keywords": [
+      "disaster",
+      "tornado",
+      "meteor",
+      "meteors",
+      "natural disaster",
+      "start disaster",
+      "timed event"
+    ],
     "functions": [
       {
         "name": "startDisaster",
@@ -203,6 +269,19 @@
   },
   "DataStoreService": {
     "description": "Service for accessing and storing persistent data for a map.",
+    "keywords": [
+      "data store",
+      "datastore",
+      "persistent data",
+      "save data",
+      "load data",
+      "storage",
+      "key value",
+      "getAsync",
+      "setAsync",
+      "incrementAsync",
+      "removeAsync"
+    ],
     "functions": [
       {
         "name": "getAsync",
@@ -243,6 +322,17 @@
   },
   "EntityService": {
     "description": "Service for creating new entities.",
+    "keywords": [
+      "entity",
+      "entities",
+      "spawn entity",
+      "kit entity",
+      "creature",
+      "mob",
+      "npc",
+      "image entity",
+      "nearby entities"
+    ],
     "functions": [
       {
         "name": "getNearbyEntities",
@@ -284,6 +374,13 @@
   },
   "ForgeService": {
     "description": "This service is no longer compatible with the latest version of the game and should not be used.",
+    "keywords": [
+      "forge",
+      "deprecated",
+      "incompatible",
+      "disabled service",
+      "do not use"
+    ],
     "functions": [],
     "source_name": "ForgeService | BedWars Creative",
     "source_url": "https://docs.easy.gg/scripting/bedwars-scripting/services/forgeservice",
@@ -294,6 +391,15 @@
   },
   "GeneratorService": {
     "description": "Service for creating item generators.",
+    "keywords": [
+      "generator",
+      "item generator",
+      "resource generator",
+      "drop generator",
+      "cooldown",
+      "generator max",
+      "createGenerator"
+    ],
     "functions": [
       {
         "name": "createGenerator",
@@ -312,6 +418,14 @@
   },
   "GravityService": {
     "description": "Service for setting world gravity.",
+    "keywords": [
+      "gravity",
+      "world gravity",
+      "low gravity",
+      "jump gravity",
+      "set gravity",
+      "Workspace.Gravity"
+    ],
     "functions": [
       {
         "name": "setGravity",
@@ -330,6 +444,16 @@
   },
   "InputService": {
     "description": "Service for tracking user input.",
+    "keywords": [
+      "input",
+      "key",
+      "keybind",
+      "keyboard",
+      "press key",
+      "release key",
+      "registerInputBegan",
+      "registerInputEnded"
+    ],
     "functions": [
       {
         "name": "registerInputBegan",
@@ -353,6 +477,17 @@
   },
   "InventoryService": {
     "description": "Service for handling inventory actions.",
+    "keywords": [
+      "inventory",
+      "item",
+      "give item",
+      "remove item",
+      "clear inventory",
+      "item amount",
+      "emerald",
+      "diamond",
+      "getInventory"
+    ],
     "functions": [
       {
         "name": "giveItem",
@@ -399,6 +534,14 @@
   },
   "ItemService": {
     "description": "Service for handling dropped items.",
+    "keywords": [
+      "item drop",
+      "dropped item",
+      "drop item",
+      "spawn item",
+      "resource drop",
+      "dropItem"
+    ],
     "functions": [
       {
         "name": "dropItem",
@@ -417,6 +560,17 @@
   },
   "MatchService": {
     "description": "Service with information on match state.",
+    "keywords": [
+      "match",
+      "host",
+      "match state",
+      "match role",
+      "match duration",
+      "end match",
+      "winner",
+      "getHost",
+      "endMatch"
+    ],
     "functions": [
       {
         "name": "getHost",
@@ -449,6 +603,17 @@
   },
   "MessageService": {
     "description": "Service for sending game messages.",
+    "keywords": [
+      "game message",
+      "broadcast",
+      "broadcast message",
+      "info message",
+      "error message",
+      "system message",
+      "sendInfo",
+      "sendError",
+      "everyone online"
+    ],
     "functions": [
       {
         "name": "broadcast",
@@ -477,6 +642,16 @@
   },
   "ModelService": {
     "description": "Service for creating models.",
+    "keywords": [
+      "model",
+      "models",
+      "create model",
+      "item model",
+      "prop",
+      "visual object",
+      "scale model",
+      "rotate model"
+    ],
     "functions": [
       {
         "name": "createModel",
@@ -504,6 +679,14 @@
   },
   "MountService": {
     "description": "Service for spawning mounts.",
+    "keywords": [
+      "mount",
+      "ride",
+      "riding",
+      "dodo bird",
+      "spawn mount",
+      "mount player"
+    ],
     "functions": [
       {
         "name": "spawnMount",
@@ -522,6 +705,16 @@
   },
   "PlayerService": {
     "description": "Service with utilities for Player objects",
+    "keywords": [
+      "player",
+      "players",
+      "get players",
+      "nearby players",
+      "username",
+      "display name",
+      "find player",
+      "getPlayers"
+    ],
     "functions": [
       {
         "name": "getPlayers",
@@ -549,6 +742,14 @@
   },
   "PartService": {
     "description": "Service for creating Parts.",
+    "keywords": [
+      "part",
+      "parts",
+      "create part",
+      "custom part",
+      "physical part",
+      "block part"
+    ],
     "functions": [
       {
         "name": "createPart",
@@ -567,6 +768,15 @@
   },
   "ParticleService": {
     "description": "Service for creating ParticleEmitters.",
+    "keywords": [
+      "particle",
+      "particles",
+      "particle emitter",
+      "visual effect",
+      "effects",
+      "music notes",
+      "createParticleEmitter"
+    ],
     "functions": [
       {
         "name": "createParticleEmitter",
@@ -593,6 +803,16 @@
   },
   "PromptService": {
     "description": "Service for creating Proximity Prompts.",
+    "keywords": [
+      "prompt",
+      "proximity prompt",
+      "interact prompt",
+      "interaction",
+      "hold prompt",
+      "activated prompt",
+      "object text",
+      "action text"
+    ],
     "functions": [
       {
         "name": "createPrompt",
@@ -611,6 +831,17 @@
   },
   "ShopService": {
     "description": "Service for adding and removing items from the shop.",
+    "keywords": [
+      "shop",
+      "shopkeeper",
+      "item shop",
+      "upgrade shop",
+      "buy item",
+      "price",
+      "cost",
+      "add shop item",
+      "remove shop item"
+    ],
     "functions": [
       {
         "name": "getAllShopkeeperIds",
@@ -649,6 +880,15 @@
   },
   "SoundService": {
     "description": "Service for playing sounds.",
+    "keywords": [
+      "sound",
+      "audio",
+      "play sound",
+      "global sound",
+      "player sound",
+      "sound effect",
+      "honk"
+    ],
     "functions": [
       {
         "name": "playSound",
@@ -672,6 +912,17 @@
   },
   "StatusEffectService": {
     "description": "Service for giving and removing status effects.",
+    "keywords": [
+      "status effect",
+      "effect",
+      "buff",
+      "debuff",
+      "speed",
+      "invisibility",
+      "give effect",
+      "remove effect",
+      "has effect"
+    ],
     "functions": [
       {
         "name": "giveEffect",
@@ -700,6 +951,13 @@
   },
   "VehicleService": {
     "description": "Service for creating vehicles.",
+    "keywords": [
+      "vehicle",
+      "vehicles",
+      "ufo",
+      "spawn vehicle",
+      "ride vehicle"
+    ],
     "functions": [
       {
         "name": "spawnVehicle",
@@ -718,6 +976,17 @@
   },
   "TeamService": {
     "description": "Service for handling team assignments.",
+    "keywords": [
+      "team",
+      "teams",
+      "team color",
+      "team bed",
+      "assign team",
+      "set team",
+      "get team",
+      "all teams",
+      "winning team"
+    ],
     "functions": [
       {
         "name": "getTeam",
@@ -751,6 +1020,17 @@
   },
   "UIService": {
     "description": "Service for creating in-game UI.",
+    "keywords": [
+      "ui",
+      "interface",
+      "hud",
+      "progress bar",
+      "leaderboard",
+      "scoreboard",
+      "text label",
+      "world label",
+      "createLeaderboard"
+    ],
     "functions": [
       {
         "name": "createProgressBar",
