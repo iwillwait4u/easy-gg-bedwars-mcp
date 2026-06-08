@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+import difflib
 import json
 import os
 import re
@@ -56,6 +57,10 @@ PROJECT_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$")
 SERVICE_USE_RE = re.compile(r"\b([A-Z][A-Za-z0-9]+Service)\s*[:.]")
 SERVICE_CALL_RE = re.compile(r"\b([A-Z][A-Za-z0-9]+Service)\s*([:.])\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(")
 EVENT_USE_RE = re.compile(r"\bEvents\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(")
+EVENT_CALLBACK_RE = re.compile(
+    r"\bEvents\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*function\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)",
+    re.DOTALL,
+)
 ITEM_TYPE_RE = re.compile(r"\bItemType\s*\.\s*([A-Z][A-Z0-9_]*)\b")
 TYPE_VALUE_RE = re.compile(r"\b([A-Z][A-Za-z0-9]+Type)\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)\b")
 LUA_STRING_RE = re.compile(r"'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"")
@@ -877,6 +882,34 @@ def _known_service_functions(service_record: dict[str, Any]) -> set[str]:
     return names
 
 
+def _known_object_methods(object_record: dict[str, Any]) -> set[str]:
+    methods = object_record.get("methods") or object_record.get("functions")
+    if not isinstance(methods, list):
+        return set()
+    return {
+        str(method["name"])
+        for method in methods
+        if isinstance(method, dict) and isinstance(method.get("name"), str)
+    }
+
+
+def _documented_return_type(record: dict[str, Any], function_name: str) -> str | None:
+    functions = record.get("functions") or record.get("methods")
+    if not isinstance(functions, list):
+        return None
+    for function in functions:
+        if not isinstance(function, dict) or function.get("name") != function_name:
+            continue
+        signature = str(function.get("signature") or "")
+        match = re.search(r"\)\s*:\s*([A-Za-z_][A-Za-z0-9_]*)", signature)
+        return match.group(1) if match else None
+    return None
+
+
+def _base_documented_type(type_name: str) -> str:
+    return re.split(r"\s*[|<]", type_name.strip(), maxsplit=1)[0].strip()
+
+
 def _known_type_values(type_record: dict[str, Any]) -> set[str]:
     values = type_record.get("values")
     if isinstance(values, dict):
@@ -1069,7 +1102,7 @@ end
 
 
 @bedwars_tool
-def search_docs(query: str) -> dict[str, Any]:
+def search_docs(query: str, include_records: bool = False, limit: int = 25) -> dict[str, Any]:
     """Search the local BedWars Creative docs cache."""
     if not query or not query.strip():
         raise BedWarsMcpError("query is required.")
@@ -1080,6 +1113,7 @@ def search_docs(query: str) -> dict[str, Any]:
     if not query_terms:
         query_terms = [query_text.casefold()]
 
+    result_limit = max(1, min(int(limit), 50))
     scored_results: list[tuple[int, int, str, dict[str, Any]]] = []
     category_order = {
         "services": 0,
@@ -1094,17 +1128,20 @@ def search_docs(query: str) -> dict[str, Any]:
             score = _record_search_score(category, name, record_dict, query_text, query_terms)
             if score <= 0:
                 continue
+            result = {
+                "category": category,
+                "name": name,
+                "snippet": _short_snippet(record_dict, query_text),
+                **_entry_source(record_dict),
+            }
+            if include_records or name.casefold() == query_text.casefold():
+                result["record"] = record_dict
             scored_results.append(
                 (
                     score,
                     category_order.get(category, 99),
                     name.casefold(),
-                    {
-                        "category": category,
-                        "name": name,
-                        "snippet": _short_snippet(record_dict, query_text),
-                        **_entry_source(record_dict),
-                    },
+                    result,
                 )
             )
 
@@ -1114,7 +1151,9 @@ def search_docs(query: str) -> dict[str, Any]:
     return {
         "query": query_text,
         "count": len(results),
-        "results": results[:25],
+        "returned": min(len(results), result_limit),
+        "include_records": include_records,
+        "results": results[:result_limit],
         "warning": None
         if results
         else "No matching BedWars API was found in docs_cache. Do not invent an API; refresh or edit docs_cache first.",
@@ -1148,7 +1187,108 @@ def read_event(event_name: str) -> dict[str, Any]:
             "warning": "Event not found in docs_cache. Do not use it unless docs.easy.gg is refreshed into the cache.",
         }
     key, record = found
-    return {"event_name": key, "found": True, **record}
+    parameters = record.get("parameters") if isinstance(record, dict) else []
+    parameter_records = parameters if isinstance(parameters, list) else []
+    modifiable_fields = [
+        str(parameter["name"])
+        for parameter in parameter_records
+        if isinstance(parameter, dict) and parameter.get("modifiable") is True
+    ]
+    read_only_fields = [
+        str(parameter["name"])
+        for parameter in parameter_records
+        if isinstance(parameter, dict)
+        and isinstance(parameter.get("name"), str)
+        and parameter.get("modifiable") is not True
+    ]
+    return {
+        "event_name": key,
+        "found": True,
+        **record,
+        "modifiable_fields": modifiable_fields,
+        "read_only_fields": read_only_fields,
+        "mutability_note": (
+            "Only fields explicitly marked modifiable in the cached official documentation should be assigned."
+        ),
+    }
+
+
+@bedwars_tool
+def read_object(object_name: str) -> dict[str, Any]:
+    """Return complete cached properties, methods, examples, and source links for one object."""
+    docs = _load_docs_cache()
+    found = _casefold_lookup(docs["objects"], object_name)
+    if not found:
+        return {
+            "object_name": object_name,
+            "found": False,
+            "warning": "Object not found in docs_cache. Do not invent methods or properties for it.",
+        }
+    key, record = found
+    methods = record.get("methods") or record.get("functions") or []
+    properties = record.get("parameters") or record.get("properties") or []
+    return {
+        "object_name": key,
+        "found": True,
+        **record,
+        "method_names": [
+            method["name"]
+            for method in methods
+            if isinstance(method, dict) and isinstance(method.get("name"), str)
+        ],
+        "property_names": [
+            prop["name"]
+            for prop in properties
+            if isinstance(prop, dict) and isinstance(prop.get("name"), str)
+        ],
+    }
+
+
+@bedwars_tool
+def read_type(type_name: str) -> dict[str, Any]:
+    """Return complete cached enum keys, runtime string values, and source links for one type."""
+    docs = _load_docs_cache()
+    found = _casefold_lookup(docs["types"], type_name)
+    if not found:
+        return {
+            "type_name": type_name,
+            "found": False,
+            "warning": "Type not found in docs_cache. Do not invent enum keys or string values for it.",
+        }
+    key, record = found
+    values = record.get("values") if isinstance(record, dict) else None
+    if isinstance(values, dict):
+        enum_values = dict(values)
+        string_values = list(dict.fromkeys(str(value) for value in values.values()))
+        reference_forms = [f"{key}.{enum_key} or {value!r}" for enum_key, value in values.items()]
+        enum_keys_documented = True
+        reference_note = "The cache documents both enum keys and runtime string values."
+    elif isinstance(values, list):
+        enum_values = {}
+        string_values = [str(value) for value in values]
+        reference_forms = [repr(str(value)) for value in values]
+        enum_keys_documented = False
+        reference_note = (
+            "The cache documents listed runtime values but not enum-key mappings. "
+            "Use the listed string form unless the official page explicitly supplies an enum key."
+        )
+    else:
+        enum_values = {}
+        string_values = []
+        reference_forms = []
+        enum_keys_documented = False
+        reference_note = "No values are documented in the current cache."
+    return {
+        "type_name": key,
+        "found": True,
+        **record,
+        "enum_values": enum_values,
+        "string_values": string_values,
+        "value_count": len(string_values),
+        "enum_keys_documented": enum_keys_documented,
+        "reference_forms": reference_forms,
+        "reference_note": reference_note,
+    }
 
 
 @bedwars_tool
@@ -1693,13 +1833,10 @@ def force_sync_directory(
     }
 
 
-@bedwars_tool
-def edit_script(file_name: str, instructions: str) -> dict[str, Any]:
-    """Edit a Lua script using simple, deterministic instructions and keep a .bak backup."""
+def _edit_lua_path(path: Path, instructions: str, *, relative_root: Path) -> dict[str, Any]:
     if not instructions or not instructions.strip():
         raise BedWarsMcpError("instructions are required.")
 
-    path = _safe_script_path(file_name, must_exist=True)
     original = path.read_text(encoding="utf-8")
     backup_path = path.with_name(path.name + ".bak")
     shutil.copy2(path, backup_path)
@@ -1747,28 +1884,102 @@ def edit_script(file_name: str, instructions: str) -> dict[str, Any]:
             note += "\n".join(f"-- {line}" for line in instructions.strip().splitlines())
             updated = original.rstrip() + note + "\n"
 
-    path.write_text(updated.rstrip() + "\n", encoding="utf-8")
+    final_code = updated.rstrip() + "\n"
+    path.write_text(final_code, encoding="utf-8")
+    relative_name = str(path.relative_to(relative_root)).replace("\\", "/")
+    relative_backup = str(backup_path.relative_to(relative_root)).replace("\\", "/")
     return {
-        "file_name": str(path.relative_to(SCRIPTS_DIR)).replace("\\", "/"),
-        "backup": str(backup_path.relative_to(SCRIPTS_DIR)).replace("\\", "/"),
+        "file_name": relative_name,
+        "backup": relative_backup,
         "edit_mode": mode,
+        "diff": "".join(
+            difflib.unified_diff(
+                original.splitlines(keepends=True),
+                final_code.splitlines(keepends=True),
+                fromfile=relative_name,
+                tofile=relative_name,
+            )
+        ),
         "bytes": path.stat().st_size,
     }
 
 
 @bedwars_tool
-def validate_script(file_name: str) -> dict[str, Any]:
-    """Inspect a Lua script for likely fake or out-of-scope BedWars APIs without executing it."""
+def edit_script(file_name: str, instructions: str) -> dict[str, Any]:
+    """Edit a repo-local Lua script using deterministic instructions and keep a .bak backup."""
     path = _safe_script_path(file_name, must_exist=True)
-    code = path.read_text(encoding="utf-8")
+    return _edit_lua_path(path, instructions, relative_root=SCRIPTS_DIR)
+
+
+def _basic_lua_syntax_errors(code: str) -> list[str]:
+    stripped = _code_without_lua_strings_or_comments(code)
+    pairs = {")": "(", "]": "[", "}": "{"}
+    delimiter_stack: list[tuple[str, int]] = []
+    errors: list[str] = []
+    line = 1
+    for character in stripped:
+        if character == "\n":
+            line += 1
+            continue
+        if character in "([{":
+            delimiter_stack.append((character, line))
+        elif character in pairs:
+            if not delimiter_stack or delimiter_stack[-1][0] != pairs[character]:
+                errors.append(f"Unmatched {character!r} near line {line}.")
+                continue
+            delimiter_stack.pop()
+    for character, opened_line in reversed(delimiter_stack):
+        errors.append(f"Unclosed {character!r} opened near line {opened_line}.")
+
+    block_stack: list[tuple[str, int]] = []
+    pending_loop_do = 0
+    for token_match in re.finditer(r"\b(function|if|for|while|do|repeat|until|end)\b", stripped):
+        token = token_match.group(1)
+        token_line = stripped.count("\n", 0, token_match.start()) + 1
+        if token in {"function", "if"}:
+            block_stack.append((token, token_line))
+        elif token in {"for", "while"}:
+            block_stack.append((token, token_line))
+            pending_loop_do += 1
+        elif token == "repeat":
+            block_stack.append((token, token_line))
+        elif token == "do":
+            if pending_loop_do:
+                pending_loop_do -= 1
+            else:
+                block_stack.append((token, token_line))
+        elif token == "until":
+            if not block_stack or block_stack[-1][0] != "repeat":
+                errors.append(f"Unexpected 'until' near line {token_line}.")
+            else:
+                block_stack.pop()
+        elif token == "end":
+            if not block_stack:
+                errors.append(f"Unexpected 'end' near line {token_line}.")
+            elif block_stack[-1][0] == "repeat":
+                errors.append(f"Repeat block near line {block_stack[-1][1]} must close with 'until'.")
+            else:
+                block_stack.pop()
+    for block, opened_line in reversed(block_stack):
+        closer = "until" if block == "repeat" else "end"
+        errors.append(f"Unclosed '{block}' block near line {opened_line}; expected '{closer}'.")
+    return errors
+
+
+def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
     code_for_global_scan = _code_without_lua_strings_or_comments(code)
     docs = _load_docs_cache()
     services = docs["services"]
     events = docs["events"]
-    item_type = docs["types"].get("ItemType", {})
+    objects = docs["objects"]
 
     warnings: list[str] = []
-    errors: list[str] = []
+    syntax_errors = _basic_lua_syntax_errors(code)
+    errors = list(syntax_errors)
+
+    def add_warning(message: str) -> None:
+        if message not in warnings:
+            warnings.append(message)
 
     for pattern in LUA_DANGEROUS_PATTERNS:
         if pattern.casefold() in code.casefold():
@@ -1784,6 +1995,9 @@ def validate_script(file_name: str) -> dict[str, Any]:
     used_services = sorted(set(SERVICE_USE_RE.findall(code)))
     used_events = sorted(set(EVENT_USE_RE.findall(code)))
     used_item_types = sorted(set(ITEM_TYPE_RE.findall(code)))
+    used_event_fields: dict[str, list[str]] = {}
+    assigned_event_fields: dict[str, list[str]] = {}
+    used_object_methods: dict[str, list[str]] = {}
     used_type_values: dict[str, list[str]] = {}
     for type_name, value_name in TYPE_VALUE_RE.findall(code):
         used_type_values.setdefault(type_name, [])
@@ -1793,7 +2007,7 @@ def validate_script(file_name: str) -> dict[str, Any]:
     for service in used_services:
         service_lookup = _casefold_lookup(services, service)
         if not service_lookup:
-            warnings.append(
+            add_warning(
                 f"{service} is not in docs_cache. Treat this as likely fake until docs.easy.gg is refreshed."
             )
             continue
@@ -1805,29 +2019,143 @@ def validate_script(file_name: str) -> dict[str, Any]:
         canonical, record = service_lookup
         known_functions = _known_service_functions(record)
         if known_functions and function_name not in known_functions:
-            warnings.append(
+            add_warning(
                 f"{canonical}.{function_name}() is not listed for {canonical} in docs_cache."
             )
         if separator == ":" and canonical.endswith("Service"):
-            warnings.append(
+            add_warning(
                 f"{canonical}:{function_name}() uses colon syntax. BedWars service docs usually show dot syntax; verify this in docs before syncing."
             )
 
     for event in used_events:
         if _casefold_lookup(events, event) is None:
-            warnings.append(
+            add_warning(
                 f"Events.{event} is not in docs_cache. Treat this as likely fake until docs.easy.gg is refreshed."
             )
+
+    def check_object_method(object_type: str, method_name: str) -> None:
+        base_type = _base_documented_type(object_type)
+        object_lookup = _casefold_lookup(objects, base_type)
+        if not object_lookup:
+            return
+        canonical, object_record = object_lookup
+        used_object_methods.setdefault(canonical, [])
+        if method_name not in used_object_methods[canonical]:
+            used_object_methods[canonical].append(method_name)
+        known_methods = _known_object_methods(object_record)
+        if known_methods and method_name not in known_methods:
+            add_warning(f"{canonical}:{method_name}() is not listed for the {canonical} object in docs_cache.")
+
+    callback_matches = list(EVENT_CALLBACK_RE.finditer(code))
+    for index, callback_match in enumerate(callback_matches):
+        event_name, variable_name = callback_match.groups()
+        next_start = callback_matches[index + 1].start() if index + 1 < len(callback_matches) else len(code)
+        segment = code[callback_match.start():next_start]
+        event_lookup = _casefold_lookup(events, event_name)
+        if not event_lookup:
+            continue
+        canonical_event, event_record = event_lookup
+        parameters = event_record.get("parameters") if isinstance(event_record, dict) else []
+        parameter_map = {
+            str(parameter["name"]): parameter
+            for parameter in parameters
+            if isinstance(parameter, dict) and isinstance(parameter.get("name"), str)
+        }
+        field_pattern = re.compile(rf"\b{re.escape(variable_name)}\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)")
+        fields = sorted(set(field_pattern.findall(segment)))
+        used_event_fields[canonical_event] = fields
+        for field_name in fields:
+            if field_name not in parameter_map:
+                add_warning(
+                    f"Events.{canonical_event} callback field {variable_name}.{field_name} is not documented."
+                )
+
+        assignment_pattern = re.compile(
+            rf"\b{re.escape(variable_name)}\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(?!=)"
+        )
+        assigned_fields = sorted(set(assignment_pattern.findall(segment)))
+        assigned_event_fields[canonical_event] = assigned_fields
+        for field_name in assigned_fields:
+            parameter = parameter_map.get(field_name)
+            if parameter is not None and parameter.get("modifiable") is not True:
+                add_warning(
+                    f"Events.{canonical_event} field {field_name} is assigned, but the cached docs do not mark it modifiable."
+                )
+
+        variable_types: dict[str, str] = {}
+        for alias, field_name in re.findall(
+            rf"\blocal\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*{re.escape(variable_name)}\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)\b",
+            segment,
+        ):
+            parameter = parameter_map.get(field_name)
+            if parameter:
+                variable_types[alias] = str(parameter.get("type") or "")
+
+        for field_name, method_name in re.findall(
+            rf"\b{re.escape(variable_name)}\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(",
+            segment,
+        ):
+            parameter = parameter_map.get(field_name)
+            if parameter:
+                check_object_method(str(parameter.get("type") or ""), method_name)
+
+        for alias, field_name, method_name in re.findall(
+            rf"\blocal\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*{re.escape(variable_name)}\s*\.\s*"
+            rf"([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(",
+            segment,
+        ):
+            parameter = parameter_map.get(field_name)
+            if not parameter:
+                continue
+            field_type = _base_documented_type(str(parameter.get("type") or ""))
+            object_lookup = _casefold_lookup(objects, field_type)
+            if object_lookup:
+                _, object_record = object_lookup
+                return_type = _documented_return_type(object_record, method_name)
+                if return_type:
+                    variable_types[alias] = return_type
+
+        for alias, object_type in variable_types.items():
+            for method_name in re.findall(
+                rf"\b{re.escape(alias)}\s*:\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(",
+                segment,
+            ):
+                check_object_method(object_type, method_name)
+
+        if "task.wait" in segment:
+            add_warning(
+                f"Events.{canonical_event} contains task.wait(). Yielding directly inside an event callback can delay event handling."
+            )
+
+    inferred_variables: dict[str, str] = {}
+    for alias, service_name, function_name in re.findall(
+        r"\blocal\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"
+        r"([A-Z][A-Za-z0-9]+Service)\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(",
+        code_for_global_scan,
+    ):
+        service_lookup = _casefold_lookup(services, service_name)
+        if not service_lookup:
+            continue
+        _, service_record = service_lookup
+        return_type = _documented_return_type(service_record, function_name)
+        if return_type:
+            inferred_variables[alias] = return_type
+    for alias, object_type in inferred_variables.items():
+        for method_name in re.findall(
+            rf"\b{re.escape(alias)}\s*:\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(",
+            code_for_global_scan,
+        ):
+            check_object_method(object_type, method_name)
 
     for type_name, value_names in sorted(used_type_values.items()):
         type_record = docs["types"].get(type_name, {})
         if not isinstance(type_record, dict):
-            warnings.append(f"{type_name} is not in docs_cache. Treat this as likely fake until docs.easy.gg is refreshed.")
+            add_warning(f"{type_name} is not in docs_cache. Treat this as likely fake until docs.easy.gg is refreshed.")
             continue
         known_values = _known_type_values(type_record)
         for value_name in value_names:
             if known_values and value_name not in known_values:
-                warnings.append(f"{type_name}.{value_name} is not in the cached {type_name} values.")
+                add_warning(f"{type_name}.{value_name} is not in the cached {type_name} values.")
 
     string_literals = _lua_string_literals(code)
     used_type_strings: dict[str, list[str]] = {}
@@ -1845,16 +2173,50 @@ def validate_script(file_name: str) -> dict[str, Any]:
         if _casefold_lookup(services, global_name):
             continue
         if re.search(rf"\b{re.escape(global_name)}\b", code_for_global_scan):
-            warnings.append(
+            add_warning(
                 f"{global_name} is a normal Roblox API/global. It may not work in BedWars Creative unless docs_cache explicitly allows it."
             )
 
+    dot_product_variables = set(
+        re.findall(
+            r"\b(?:local\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*[^\n]*[.:]\s*Dot\s*\(",
+            code_for_global_scan,
+        )
+    )
+    for line_number, line in enumerate(code.splitlines(), start=1):
+        if re.search(r"[.:]\s*Dot\s*\(", line) and ".Magnitude" in line and re.search(r"[<>]=?", line):
+            add_warning(
+                f"Line {line_number} compares a dot product with a magnitude/distance. "
+                "A dot product is directional alignment, not distance; compare compatible quantities."
+            )
+            continue
+        if ".Magnitude" not in line or not re.search(r"[<>]=?", line):
+            continue
+        for variable_name in dot_product_variables:
+            if re.search(rf"\b{re.escape(variable_name)}\b", line):
+                add_warning(
+                    f"Line {line_number} compares dot-product variable {variable_name} with a magnitude/distance. "
+                    "A dot product is directional alignment, not distance; compare compatible quantities."
+                )
+                break
+
     return {
-        "file_name": str(path.relative_to(SCRIPTS_DIR)).replace("\\", "/"),
+        "file_name": file_name,
         "executed": False,
         "valid": not errors,
+        "syntax_check": {
+            "level": "basic_static",
+            "errors": syntax_errors,
+            "note": "Checks delimiter structure only; the BedWars runtime remains authoritative for Lua parsing.",
+        },
         "used_services": used_services,
         "used_events": used_events,
+        "used_event_fields": used_event_fields,
+        "assigned_event_fields": assigned_event_fields,
+        "used_object_methods": {
+            key: sorted(value)
+            for key, value in sorted(used_object_methods.items())
+        },
         "used_item_types": used_item_types,
         "used_item_strings": used_item_strings,
         "used_type_values": {key: sorted(value) for key, value in sorted(used_type_values.items())},
@@ -1863,6 +2225,221 @@ def validate_script(file_name: str) -> dict[str, Any]:
         "warnings": warnings,
         "note": "Static validation only. The script was not executed.",
     }
+
+
+@bedwars_tool
+def edit_directory_script(
+    directory: str,
+    file_name: str,
+    instructions: str,
+    sync: bool = True,
+) -> dict[str, Any]:
+    """Edit an outside project Lua script, keep a backup, and return a unified diff."""
+    root, path = _directory_relative_script_path(directory, file_name, sync=sync)
+    if not path.exists():
+        raise BedWarsMcpError(f"Script not found: {path}")
+    result = _edit_lua_path(path, instructions, relative_root=root)
+    result.update(
+        {
+            "directory": str(root),
+            "path": str(path),
+            "sync": sync,
+            "validation": _validate_lua_code(
+                path.read_text(encoding="utf-8"),
+                str(path.relative_to(root)).replace("\\", "/"),
+            ),
+        }
+    )
+    return result
+
+
+@bedwars_tool
+def validate_script(file_name: str) -> dict[str, Any]:
+    """Inspect a repo-local Lua script for likely API, event, object, enum, and syntax mistakes."""
+    path = _safe_script_path(file_name, must_exist=True)
+    return _validate_lua_code(
+        path.read_text(encoding="utf-8"),
+        str(path.relative_to(SCRIPTS_DIR)).replace("\\", "/"),
+    )
+
+
+@bedwars_tool
+def validate_directory_script(
+    directory: str,
+    file_name: str,
+    sync: bool = True,
+) -> dict[str, Any]:
+    """Validate a Lua script in an outside directory project's scripts/ or drafts/ folder."""
+    root, path = _directory_relative_script_path(directory, file_name, sync=sync)
+    if not path.exists():
+        raise BedWarsMcpError(f"Script not found: {path}")
+    result = _validate_lua_code(
+        path.read_text(encoding="utf-8"),
+        str(path.relative_to(root)).replace("\\", "/"),
+    )
+    result["directory"] = str(root)
+    result["path"] = str(path)
+    result["sync"] = sync
+    return result
+
+
+@bedwars_tool
+def create_event_trace(
+    directory: str,
+    event_names: list[str] | None = None,
+    file_name: str = "event_trace.lua",
+    sync: bool = True,
+) -> dict[str, Any]:
+    """Create a script that prints documented event order and payload fields to the in-game Console tab."""
+    selected_events = event_names or ["ProjectileLaunched", "ProjectileHit", "EntityDamage"]
+    docs = _load_docs_cache()
+    blocks = [
+        "-- Generated event tracer. Delete this script after debugging.",
+        "local eventTraceSequence = 0",
+        "",
+    ]
+    traced: list[dict[str, Any]] = []
+    for requested_name in selected_events:
+        found = _casefold_lookup(docs["events"], requested_name)
+        if not found:
+            raise BedWarsMcpError(f"Event not found in docs_cache: {requested_name}")
+        event_name, record = found
+        parameters = record.get("parameters") if isinstance(record, dict) else []
+        fields = [
+            str(parameter["name"])
+            for parameter in parameters
+            if isinstance(parameter, dict) and isinstance(parameter.get("name"), str)
+        ]
+        modifiable_fields = [
+            str(parameter["name"])
+            for parameter in parameters
+            if isinstance(parameter, dict)
+            and isinstance(parameter.get("name"), str)
+            and parameter.get("modifiable") is True
+        ]
+        print_arguments = ['"[event-trace]"', "eventTraceSequence", f'"{event_name}"']
+        for field in fields:
+            print_arguments.extend([f'"{field}"', f"event.{field}"])
+        blocks.extend(
+            [
+                f"Events.{event_name}(function(event)",
+                "    eventTraceSequence = eventTraceSequence + 1",
+                f"    print({', '.join(print_arguments)})",
+                "end)",
+                "",
+            ]
+        )
+        traced.append(
+            {
+                "event_name": event_name,
+                "fields": fields,
+                "modifiable_fields": modifiable_fields,
+                **_entry_source(record),
+            }
+        )
+
+    root, path = _directory_relative_script_path(directory, file_name, sync=sync)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    code = "\n".join(blocks).rstrip() + "\n"
+    path.write_text(code, encoding="utf-8")
+    return {
+        "directory": str(root),
+        "file_name": str(path.relative_to(root)).replace("\\", "/"),
+        "path": str(path),
+        "sync": sync,
+        "events": traced,
+        "code": code,
+        "validation": _validate_lua_code(code, str(path.relative_to(root)).replace("\\", "/")),
+        "runtime_note": (
+            "Sync this script, reproduce the action, then read the Roblox Host Panel Console tab. "
+            "The Code Sync HTTP API cannot retrieve those console lines automatically."
+        ),
+    }
+
+
+@bedwars_tool
+def runtime_capabilities() -> dict[str, Any]:
+    """Report documented scripting capabilities and Code Sync transport limitations."""
+    return {
+        "code_sync_transport": {
+            "upload_local_scripts": True,
+            "delete_remote_scripts_by_full_set_sync": True,
+            "http_delivery_status": True,
+            "read_remote_script_content": False,
+            "read_runtime_console": False,
+            "start_or_control_match": False,
+            "spawn_test_players": False,
+            "reason": (
+                "The available Code Sync service exposes multipart script upload only. "
+                "It has no documented console, remote-read, or live-game control endpoint."
+            ),
+        },
+        "creative_api": {
+            "projectile_velocity": {
+                "observe": True,
+                "modify": False,
+                "evidence": [
+                    "BeforeProjectileLaunched.velocity",
+                    "ProjectileLaunched.velocity",
+                ],
+                "note": "Velocity is documented as a callback field but is not marked modifiable.",
+            },
+            "camera_direction": {
+                "documented": False,
+                "related": ["Entity:getCFrame()"],
+                "note": "Entity CFrame is available, but player camera direction is not documented.",
+            },
+            "raycasts": {
+                "documented": False,
+                "note": "No raycast service or utility exists in the current official docs cache.",
+            },
+            "health": {
+                "documented": True,
+                "apis": ["Entity:getHealth()", "Entity:getMaxHealth()", "Entity:setMaxHealth()"],
+            },
+            "damage_and_knockback": {
+                "documented": True,
+                "apis": [
+                    "CombatService.damage(...)",
+                    "Events.EntityDamage.damage",
+                    "Events.EntityDamage.knockback",
+                    "Events.EntityDamage.cancelled",
+                ],
+                "modifiable_event_fields": ["damage", "knockback", "cancelled"],
+            },
+            "weapon_metadata": {
+                "documented": False,
+                "note": (
+                    "The cache contains item/projectile identifiers, but no documented API for native weapon damage, "
+                    "projectile speed, headshot multiplier, or complete weapon metadata."
+                ),
+            },
+        },
+        "verification_levels": {
+            "static": "validate_script or validate_directory_script",
+            "delivery": "sync_directory HTTP status and server response",
+            "runtime": "Manual Host Panel Console inspection or a generated create_event_trace script",
+        },
+    }
+
+
+@bedwars_tool
+def read_runtime_console(error_text: str = "") -> dict[str, Any]:
+    """Report console-access availability and optionally analyze console text supplied by the user."""
+    result: dict[str, Any] = {
+        "available": False,
+        "reason": (
+            "The Code Sync endpoint does not expose Host Panel Console output. "
+            "Console text must be pasted or provided through a future Roblox-side bridge."
+        ),
+        "alternatives": [
+            "Use create_event_trace, sync it, and inspect the Host Panel Console tab.",
+            "Paste a console error into read_runtime_console(error_text=...) or explain_error.",
+        ],
+    }
+    if error_text.strip():
+        result["provided_error_analysis"] = explain_error(error_text)
+    return result
 
 
 @bedwars_tool

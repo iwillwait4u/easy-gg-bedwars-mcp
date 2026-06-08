@@ -72,11 +72,11 @@ Tool names, descriptions, and usage context are registered from `src/creative_sc
 
 Main groups:
 
-- Docs: search/read cached services and events.
-- Script files: create, read, edit, validate, and delete Lua files.
+- Docs: search/read complete cached services, events, objects, and types.
+- Script files: create, read, diff/edit, validate, and delete Lua files.
 - Projects: organize `sync/`, `drafts/`, and `prompts/` folders.
 - Code Sync: connect a token, sync one folder, check status, and run a watcher.
-- Debugging: explain console errors and generate defensive patterns for missing APIs like `pcall`.
+- Debugging: validate external scripts, generate event traces, report runtime capabilities, and explain pasted console errors.
 
 Ask the MCP client to list tools for exact schemas.
 
@@ -137,6 +137,8 @@ For normal project work, use MCP tools instead of terminal file scans:
 - `read_directory_project` to inspect folder state, scripts, prompt, and config.
 - `read_directory_script` to read a project Lua file.
 - `create_directory_script` to write scripts under `scripts/`.
+- `edit_directory_script` to make a small edit and return a unified diff.
+- `validate_directory_script` to check APIs, enum values, callback fields, object methods, and basic syntax structure.
 - `sync_directory` for normal sync without generated scripts.
 
 If the HTTP upload succeeds but the Roblox editor does not visibly refresh, use the explicit hard-sync tool:
@@ -164,6 +166,21 @@ When deleting the final script in a folder, sync with `allow_empty=true` so the 
 ## Runtime Limits
 
 The Creative Lua sandbox does not expose every standard Lua global. In particular, do not assume `pcall(...)` or `xpcall(...)` exist.
+
+The Code Sync transport only uploads scripts and reports HTTP delivery. It cannot retrieve the Host Panel Console, read exact remote script contents, start matches, spawn players, or inspect live entities. Use `runtime_capabilities()` before relying on a runtime feature.
+
+For event debugging, generate a temporary trace script:
+
+```text
+create_event_trace(
+  directory="C:\\path\\to\\your-project",
+  event_names=["ProjectileLaunched", "ProjectileHit", "EntityDamage"]
+)
+```
+
+Sync the trace, reproduce the action, and inspect the Host Panel Console tab. Delete the trace script after debugging. `read_runtime_console(error_text="...")` can analyze console text you paste, but it cannot fetch the Console tab itself.
+
+Use `read_object("Entity")`, `read_type("ProjectileType")`, and `read_event("EntityDamage")` for complete methods, enum values, payload fields, and documented field mutability. Exact-name `search_docs` matches also include the full cached record.
 
 True protected-call behavior cannot be recreated in plain Lua: catching arbitrary runtime errors requires runtime support. What is possible is defensive scripting:
 

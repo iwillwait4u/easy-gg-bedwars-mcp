@@ -8,7 +8,7 @@ SERVER_INSTRUCTIONS = (
     "Use documented in-game Lua APIs, local project files, and Code Sync. "
     "For normal project work, prefer MCP tools over shell commands: use "
     "read_directory_project/read_directory_script instead of PowerShell folder scans, "
-    "search_docs/read_service/read_event instead of broad filesystem searches, and "
+    "search_docs/read_service/read_event/read_object/read_type instead of broad filesystem searches, and "
     "force_sync_directory when a visible first sync is needed. "
     "Use service keywords to resolve similar services: AnnouncementService is for "
     "announcement banners, ChatService is for public chat lines, and MessageService "
@@ -28,8 +28,8 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "search_docs": {
         "name": "search_docs",
         "category": "docs",
-        "description": "Search the local API docs cache.",
-        "context": "Use before writing Lua when the needed API, event, type, or object is uncertain.",
+        "description": "Search the local API docs cache, with optional full matching records.",
+        "context": "Use before writing Lua when an API is uncertain. Exact-name matches include the complete record; set include_records=true for full records on broader searches.",
     },
     "read_service": {
         "name": "read_service",
@@ -40,8 +40,20 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "read_event": {
         "name": "read_event",
         "category": "docs",
-        "description": "Read cached callback parameters, notes, source links, and examples for one event.",
-        "context": "Use before wiring Events.* handlers so Lua uses documented event fields.",
+        "description": "Read cached callback parameters, mutability, source links, and examples for one event.",
+        "context": "Use before wiring Events.* handlers so Lua uses documented fields and only assigns fields marked modifiable.",
+    },
+    "read_object": {
+        "name": "read_object",
+        "category": "docs",
+        "description": "Read complete cached properties, methods, examples, and source links for one object.",
+        "context": "Use for Entity, Player, Leaderboard, Team, Knockback, and other object method questions.",
+    },
+    "read_type": {
+        "name": "read_type",
+        "category": "docs",
+        "description": "Read complete enum keys and runtime string values for one documented type.",
+        "context": "Use for ItemType, ProjectileType, SoundType, KeyCode, AbilityType, and similar value sets.",
     },
     "create_script": {
         "name": "create_script",
@@ -115,6 +127,12 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Read a Lua script from an outside folder project's scripts/ or drafts/ folder.",
         "context": "Use to inspect user project scripts before editing, validating, or syncing. This replaces PowerShell Get-Content for project Lua files.",
     },
+    "edit_directory_script": {
+        "name": "edit_directory_script",
+        "category": "directory projects",
+        "description": "Apply a deterministic edit to an outside project script and return a unified diff.",
+        "context": "Use for small replacements, appends, prepends, or fenced-code updates without replacing files through shell commands. A .bak backup is retained.",
+    },
     "delete_directory_script": {
         "name": "delete_directory_script",
         "category": "directory projects",
@@ -178,8 +196,32 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "validate_script": {
         "name": "validate_script",
         "category": "authoring",
-        "description": "Statically check a repo-local Lua script for known services, events, and type references.",
-        "context": "Use before syncing generated code. This checks against docs_cache and does not execute Lua.",
+        "description": "Statically check a repo-local Lua script for APIs, event fields, object methods, enums, syntax structure, and logical mistakes.",
+        "context": "Use before syncing generated repo-local code. This checks against docs_cache and does not execute Lua.",
+    },
+    "validate_directory_script": {
+        "name": "validate_directory_script",
+        "category": "authoring",
+        "description": "Validate a Lua script inside an outside project folder.",
+        "context": "Use before syncing user project scripts. It validates services, methods, enums, callback fields, field mutability, and basic syntax structure.",
+    },
+    "create_event_trace": {
+        "name": "create_event_trace",
+        "category": "debugging",
+        "description": "Create a temporary Lua script that prints event order and documented payload fields.",
+        "context": "Use to trace ProjectileLaunched, ProjectileHit, EntityDamage, or other documented events. Sync it, reproduce the action, inspect the Host Panel Console, then delete it.",
+    },
+    "runtime_capabilities": {
+        "name": "runtime_capabilities",
+        "category": "debugging",
+        "description": "Report documented Creative API capabilities and Code Sync transport limitations.",
+        "context": "Use before promising camera, raycast, weapon metadata, console, remote-content, or live-test capabilities.",
+    },
+    "read_runtime_console": {
+        "name": "read_runtime_console",
+        "category": "debugging",
+        "description": "Report console-access availability and analyze console text supplied by the user.",
+        "context": "The current Code Sync endpoint cannot retrieve the Host Panel Console. Pass pasted error text for analysis or use create_event_trace for manual tracing.",
     },
     "safe_call_pattern": {
         "name": "safe_call_pattern",
