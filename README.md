@@ -130,7 +130,7 @@ sync_directory(
 
 By default, `sync_directory` and `connect_sync` use the visible hard-sync path: they prepare `scripts/`, `drafts/`, `prompts/`, `bwconfig.lua`, `bedwars-project.json`, and `scripts/main.lua` when needed, update `scripts/zz_sync_probe.lua`, upload `scripts/**/*.lua`, and connect the watcher. Uploads match the official VS Code extension's multipart filename, content type, and request headers, then repeat once after a short delay to confirm delivery to the active Roblox editor session.
 
-BedWars rejects a truly empty upload with `File is required`. For intentional delete-all syncs, use `allow_empty=true`. The MCP creates and uploads a harmless `main.lua` containing only `-- No active BedWars scripts.`; this valid one-file set removes every previous remote script. The generated placeholder is removed automatically when a real script is added.
+BedWars rejects a truly empty multipart upload with `File is required`. For intentional delete-all syncs, use `allow_empty=true`. The MCP sends an in-memory zero-byte file named `.lua`; the request still contains the required file part, while the empty Lua basename clears the remote script set. Nothing is written to the project folder.
 
 For normal project work, use MCP tools instead of terminal file scans:
 
@@ -159,7 +159,7 @@ sync_directory(sync_token="{sync-token}", directory="C:\\path\\to\\your-project"
 
 Deleted scripts are archived under `.deleted/` by default. Sync the whole folder after deleting so BedWars receives the current file set and removes scripts that are no longer present.
 
-When deleting the final script in a folder, sync with `allow_empty=true` so the MCP replaces the remote file set with the harmless generated placeholder.
+When deleting the final script in a folder, sync with `allow_empty=true` so the MCP clears the remote file set without creating a placeholder.
 
 ## Runtime Limits
 

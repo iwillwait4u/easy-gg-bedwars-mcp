@@ -161,7 +161,7 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "name": "sync_directory",
         "category": "sync",
         "description": "Upload an outside folder using the confirmed VS Code extension-compatible sync path.",
-        "context": "Use for project folders outside this repo. It prepares scripts/, updates zz_sync_probe.lua, reads bwconfig.lua syncGlob when present, sends extension-compatible multipart uploads twice for delivery confirmation, and connects the watcher. For delete-all, allow_empty=true creates a harmless comment-only main.lua because BedWars rejects zero-file payloads.",
+        "context": "Use for project folders outside this repo. It prepares scripts/, updates zz_sync_probe.lua, reads bwconfig.lua syncGlob when present, sends extension-compatible multipart uploads twice for delivery confirmation, and connects the watcher. For delete-all, allow_empty=true sends an in-memory empty-basename .lua payload without creating a local placeholder.",
     },
     "force_sync_directory": {
         "name": "force_sync_directory",

@@ -9,8 +9,9 @@ import time
 from contextlib import ExitStack
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from io import BytesIO
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -36,7 +37,6 @@ SYNC_SESSION: dict[str, Any] = {}
 SYNC_LOCK = threading.RLock()
 SYNC_WATCHER_STOP: threading.Event | None = None
 SYNC_WATCHER_THREAD: threading.Thread | None = None
-EMPTY_SYNC_PLACEHOLDER_CODE = "-- No active BedWars scripts.\n"
 
 DOC_FILES = {
     "services": "services.json",
@@ -476,45 +476,6 @@ def _auto_upload_root(root: Path, paths: list[Path]) -> Path:
     return root
 
 
-def _empty_sync_placeholder_path(root: Path, glob_pattern: str, upload_root: Path | None) -> Path:
-    if upload_root is not None:
-        return upload_root.resolve() / "main.lua"
-
-    normalized = glob_pattern.replace("\\", "/").strip("/")
-    static_parts: list[str] = []
-    for part in normalized.split("/"):
-        if not part or any(character in part for character in "*?["):
-            break
-        static_parts.append(part)
-
-    if static_parts:
-        base = root.joinpath(*static_parts)
-        if base.suffix:
-            base = base.parent
-    elif normalized.startswith("**/") and (root / "scripts").is_dir():
-        base = root / "scripts"
-    else:
-        base = root
-    return base / "main.lua"
-
-
-def _remove_generated_empty_placeholder(paths: list[Path]) -> list[Path]:
-    if len(paths) < 2:
-        return paths
-
-    remaining: list[Path] = []
-    for path in paths:
-        is_generated_placeholder = (
-            path.name.casefold() == "main.lua"
-            and path.read_text(encoding="utf-8") == EMPTY_SYNC_PLACEHOLDER_CODE
-        )
-        if is_generated_placeholder:
-            path.unlink()
-            continue
-        remaining.append(path)
-    return remaining
-
-
 def _sync_directory_with_token(
     sync_token: str,
     directory: str,
@@ -524,36 +485,21 @@ def _sync_directory_with_token(
     allow_empty: bool = False,
 ) -> dict[str, Any]:
     root, paths = _directory_sync_file_paths(directory, glob_pattern)
-    paths = _remove_generated_empty_placeholder(paths)
-    empty_sync_fallback = False
-    placeholder_path: Path | None = None
-
-    if not paths and allow_empty:
-        placeholder_path = _empty_sync_placeholder_path(root, glob_pattern, upload_root)
-        placeholder_path.parent.mkdir(parents=True, exist_ok=True)
-        placeholder_path.write_text(EMPTY_SYNC_PLACEHOLDER_CODE, encoding="utf-8")
-        paths = [placeholder_path.resolve()]
-        empty_sync_fallback = True
 
     if not paths and not allow_empty:
         raise BedWarsMcpError(f"No .lua files matched inside {root} for glob_pattern: {glob_pattern}")
 
     selected_upload_root = upload_root or _auto_upload_root(root, paths)
-    result = _post_sync_files(sync_token, paths, upload_root=selected_upload_root)
+    if paths:
+        result = _post_sync_files(sync_token, paths, upload_root=selected_upload_root)
+    else:
+        result = _post_empty_sync(sync_token)
+
     result["directory"] = str(root)
     result["glob_pattern"] = glob_pattern
     result["upload_root"] = str(selected_upload_root)
-    result["empty_sync_fallback"] = empty_sync_fallback
-    result["placeholder_file"] = (
-        str(placeholder_path.relative_to(root)).replace("\\", "/")
-        if placeholder_path is not None
-        else None
-    )
-    if empty_sync_fallback:
-        result["remote_note"] = (
-            "BedWars rejects a zero-file payload. The generated comment-only main.lua replaces the remote file set, "
-            "so all previous active scripts are removed."
-        )
+    result["empty_sync_fallback"] = not paths
+    result["placeholder_file"] = None
     return result
 
 
@@ -769,12 +715,11 @@ def _directory_lua_file_infos(root: Path, base: Path) -> list[dict[str, Any]]:
     return files
 
 
-def _post_sync_files(
+def _post_sync_multipart(
     sync_token: str,
-    paths: list[Path],
     *,
-    upload_root: Path,
-    allow_empty: bool = False,
+    uploaded: list[str],
+    build_files: Callable[[ExitStack], list[tuple[str, tuple[str, Any, str]]]],
     delivery_attempts: int = 2,
 ) -> dict[str, Any]:
     token = (sync_token or "").strip()
@@ -782,19 +727,6 @@ def _post_sync_files(
         raise BedWarsMcpError("sync_token is required. Generate it in the BedWars script editor Sync tab.")
     if not SYNC_TOKEN_RE.match(token):
         raise BedWarsMcpError("sync_token has an unexpected format. Paste only the token, with no URL or spaces.")
-    if not paths:
-        raise BedWarsMcpError(
-            "Code Sync rejects zero-file payloads. Use sync_directory(..., allow_empty=true) so the MCP can upload "
-            "a harmless placeholder and remove the previous remote scripts."
-        )
-
-    uploaded = [path.name for path in paths]
-    duplicate_names = sorted({name for name in uploaded if uploaded.count(name) > 1})
-    if duplicate_names:
-        raise BedWarsMcpError(
-            "Code Sync uses script basenames like the official VS Code extension. "
-            f"Rename duplicate files before syncing: {', '.join(duplicate_names)}"
-        )
 
     url = f"{CODE_SYNC_BASE_URL}/servers/sync-code/{token}/sync-files"
     attempts = max(1, min(int(delivery_attempts), 3))
@@ -808,21 +740,8 @@ def _post_sync_files(
     try:
         for attempt_number in range(1, attempts + 1):
             with ExitStack() as stack:
-                files = [
-                    (
-                        "files",
-                        (
-                            path.name,
-                            stack.enter_context(path.open("rb")),
-                            "text/x-lua",
-                        ),
-                    )
-                    for path in paths
-                ]
-                if files:
-                    response = httpx.post(url, files=files, headers=request_headers, timeout=30.0)
-                else:
-                    response = httpx.post(url, files={}, headers=request_headers, timeout=30.0)
+                files = build_files(stack)
+                response = httpx.post(url, files=files, headers=request_headers, timeout=30.0)
 
             response_text = response.text.strip()
             try:
@@ -867,6 +786,78 @@ def _post_sync_files(
             )
         ),
     }
+
+
+def _post_sync_files(
+    sync_token: str,
+    paths: list[Path],
+    *,
+    upload_root: Path,
+    allow_empty: bool = False,
+    delivery_attempts: int = 2,
+) -> dict[str, Any]:
+    if not paths:
+        raise BedWarsMcpError(
+            "No files were provided. Use sync_directory(..., allow_empty=true) to clear the remote script set."
+        )
+
+    uploaded = [path.name for path in paths]
+    duplicate_names = sorted({name for name in uploaded if uploaded.count(name) > 1})
+    if duplicate_names:
+        raise BedWarsMcpError(
+            "Code Sync uses script basenames like the official VS Code extension. "
+            f"Rename duplicate files before syncing: {', '.join(duplicate_names)}"
+        )
+
+    def build_files(stack: ExitStack) -> list[tuple[str, tuple[str, Any, str]]]:
+        return [
+            (
+                "files",
+                (
+                    path.name,
+                    stack.enter_context(path.open("rb")),
+                    "text/x-lua",
+                ),
+            )
+            for path in paths
+        ]
+
+    result = _post_sync_multipart(
+        sync_token,
+        uploaded=uploaded,
+        build_files=build_files,
+        delivery_attempts=delivery_attempts,
+    )
+    result["delete_all"] = False
+    return result
+
+
+def _post_empty_sync(sync_token: str, *, delivery_attempts: int = 2) -> dict[str, Any]:
+    def build_files(stack: ExitStack) -> list[tuple[str, tuple[str, Any, str]]]:
+        return [
+            (
+                "files",
+                (
+                    ".lua",
+                    stack.enter_context(BytesIO(b"")),
+                    "text/x-lua",
+                ),
+            )
+        ]
+
+    result = _post_sync_multipart(
+        sync_token,
+        uploaded=[],
+        build_files=build_files,
+        delivery_attempts=delivery_attempts,
+    )
+    result["delete_all"] = True
+    result["empty_basename_transport"] = True
+    result["remote_note"] = (
+        "BedWars received an in-memory zero-byte .lua file. Its empty script basename clears the remote script set "
+        "without creating a local or visible placeholder."
+    )
+    return result
 
 
 def _known_service_functions(service_record: dict[str, Any]) -> set[str]:
