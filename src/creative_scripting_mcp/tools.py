@@ -12,8 +12,8 @@ SERVER_INSTRUCTIONS = (
     "search_fandom_cache/read_fandom_page for cached gameplay wiki lookups, and "
     "force_sync_directory when a visible first sync is needed. "
     "Community reference exports may be audited with audit_reference_export, but they never override official "
-    "docs.easy.gg API records. Use recommend_mechanic_apis to turn community-inspired mechanics into original, "
-    "docs-backed implementations. "
+    "docs.easy.gg API records. Use recommend_mechanic_apis and recommend_algorithm to turn community-inspired "
+    "mechanics into original, docs-backed implementations. "
     "Use service keywords to resolve similar services: AnnouncementService is for "
     "announcement banners, ChatService is for public chat lines, and MessageService "
     "is for broadcast/info/error game messages. "
@@ -88,6 +88,12 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "category": "reference analysis",
         "description": "Map a requested mechanic to official services, events, objects, and types.",
         "context": "Use before implementing persistence, abilities, input/UI, building, entities, combat, chat commands, announcements, effects, teams, or geometry.",
+    },
+    "recommend_algorithm": {
+        "name": "recommend_algorithm",
+        "category": "reference analysis",
+        "description": "Return original algorithm steps, official API references, limits, and pitfalls for complex mechanics.",
+        "context": "Use before implementing target selection, visibility sampling, area damage, prefab placement, or world text. It returns no community source code or copied data tables.",
     },
     "create_script": {
         "name": "create_script",

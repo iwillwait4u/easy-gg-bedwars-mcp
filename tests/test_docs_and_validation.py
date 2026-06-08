@@ -79,6 +79,56 @@ end
         self.assertFalse(result["valid"])
         self.assertIn("expected 'end'", "\n".join(result["syntax_check"]["errors"]))
 
+    def test_validation_warns_about_expensive_or_incompatible_algorithms(self) -> None:
+        code = """local alignment = forward:Dot(toTarget)
+if alignment > 0.4 and alignment < bestDistance then
+    bestDistance = alignment
+end
+
+local targets = EntityService.getNearbyEntities(origin, 1e309)
+while task.wait(0.05) do
+    local position = player:getEntity():getPosition()
+    CombatService.damage(target, 2, source)
+end
+
+loadText("sample", 1, origin, ItemType.STONE)
+for _, row in pairs(rows) do
+    for _, cell in pairs(row) do
+        PartService.createPart(ItemType.STONE, cell)
+    end
+end
+"""
+        result = server._validate_lua_code(code, "algorithm_checks.lua")
+        warnings = "\n".join(result["warnings"])
+
+        self.assertIn("alignment scoring and world-space distance", warnings)
+        self.assertIn("assigned dot-product variable", warnings)
+        self.assertIn("very large nearby-query radius", warnings)
+        self.assertIn("every 0.05 seconds", warnings)
+        self.assertIn("without checking the intermediate result", warnings)
+        self.assertIn("not a documented built-in", warnings)
+        self.assertIn("total instance budget", warnings)
+
+    def test_projectile_launch_manual_damage_warns_about_double_damage(self) -> None:
+        result = server._validate_lua_code(
+            """Events.ProjectileLaunched(function(event)
+    CombatService.damage(event.shooter, 1, nil)
+end)
+""",
+            "projectile_damage.lua",
+        )
+
+        self.assertIn("native projectile damage", "\n".join(result["warnings"]))
+
+    def test_minified_world_generation_still_gets_budget_warning(self) -> None:
+        result = server._validate_lua_code(
+            "for _,line in pairs(lines) do for _,cell in pairs(line) do "
+            "ModelService.createItemModel(ItemType.STONE,cell) end end",
+            "minified_builder.lua",
+        )
+
+        self.assertIn("total instance budget", "\n".join(result["warnings"]))
+
     def test_event_trace_generation_and_runtime_capabilities(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

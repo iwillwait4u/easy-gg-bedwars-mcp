@@ -97,6 +97,23 @@ class ReferenceAnalysisTests(unittest.TestCase):
                     with self.subTest(mechanic=mechanic, category=category, name=name):
                         self.assertIsNotNone(server._casefold_lookup(docs[category], name))
 
+    def test_algorithm_guides_are_original_and_use_cached_official_records(self) -> None:
+        result = server.recommend_algorithm("target selection with line of sight")
+        serialized = json.dumps(result)
+
+        algorithms = {match["algorithm"] for match in result["matches"]}
+        self.assertIn("target_selection", algorithms)
+        self.assertIn("segment_visibility", algorithms)
+        self.assertFalse(result["source_content_included"])
+        self.assertNotIn("realistic aimbot", serialized.casefold())
+
+        docs = server._load_docs_cache()
+        for algorithm, guide in server.ALGORITHM_GUIDES.items():
+            for category in ("services", "events", "objects", "types"):
+                for name in guide[category]:
+                    with self.subTest(algorithm=algorithm, category=category, name=name):
+                        self.assertIsNotNone(server._casefold_lookup(docs[category], name))
+
     def test_button_service_gets_specific_validation_guidance(self) -> None:
         result = server._validate_lua_code(
             'ButtonService.create("Open")\n',

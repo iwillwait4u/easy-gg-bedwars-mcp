@@ -92,7 +92,9 @@ Ask the MCP client to list tools for exact schemas.
 
 Use `audit_reference_export(directory="C:\\path\\to\\export")` to inspect a structured script export. The tool returns aggregate mechanic, API, and risk counts only. It does not return or import scripts, messages, authors, or copied implementations.
 
-Use `recommend_mechanic_apis(topic="persistent player upgrades")` to map an observed mechanic to official cached services, events, objects, and types before writing original code. Community evidence can suggest behavior and test cases, but only the `docs.easy.gg` cache validates scripting APIs.
+Use `recommend_mechanic_apis(topic="persistent player upgrades")` to map an observed mechanic to official cached services, events, objects, and types before writing original code.
+
+Use `recommend_algorithm(topic="bounded target selection with wall checks")` for original design steps and pitfalls covering target selection, segment visibility, area damage, prefab placement, and world text. Community evidence can suggest behavior and test cases, but only the `docs.easy.gg` cache validates scripting APIs.
 
 Run `validate_directory_project(directory="C:\\path\\to\\project")` before sync to validate every Lua file under `scripts/`.
 

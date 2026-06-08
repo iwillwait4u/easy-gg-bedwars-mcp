@@ -92,12 +92,15 @@ MECHANIC_API_RECIPES: dict[str, dict[str, Any]] = {
         ],
     },
     "world_building": {
-        "keywords": ["block", "part", "model", "world", "region", "area", "obby", "build"],
+        "keywords": ["block", "part", "model", "world", "region", "area", "obby", "build", "sign", "prefab", "world text"],
         "services": ["BlockService", "PartService", "ModelService"],
         "events": ["BlockPlace", "BlockBreak"],
         "objects": ["Block", "Part", "Model"],
         "types": ["ItemType", "ModelType"],
-        "notes": ["Use BlockService.getNearbyBlocks for documented area queries; no official raycast API is cached."],
+        "notes": [
+            "Use BlockService.getNearbyBlocks for documented area queries; no official raycast API is cached.",
+            "Treat imported structures and glyphs as validated relative-coordinate data, not executable source.",
+        ],
     },
     "entities": {
         "keywords": ["npc", "entity", "creature", "spawn", "guard"],
@@ -108,12 +111,15 @@ MECHANIC_API_RECIPES: dict[str, dict[str, Any]] = {
         "notes": ["Check nullable entity and player returns before calling methods."],
     },
     "combat": {
-        "keywords": ["damage", "heal", "combat", "knockback", "nuke"],
-        "services": ["CombatService"],
+        "keywords": ["damage", "heal", "combat", "knockback", "nuke", "aura", "target", "aim", "projectile assist"],
+        "services": ["CombatService", "EntityService", "PlayerService"],
         "events": ["EntityDamage", "EntityDeath"],
         "objects": ["Entity", "Knockback"],
         "types": [],
-        "notes": ["Only assign event fields explicitly marked modifiable in read_event."],
+        "notes": [
+            "Only assign event fields explicitly marked modifiable in read_event.",
+            "Use bounded searches, filter invalid targets, and keep directional alignment separate from distance ranking.",
+        ],
     },
     "chat_commands": {
         "keywords": ["chat", "command", "slash command", "player chatted"],
@@ -152,7 +158,7 @@ MECHANIC_API_RECIPES: dict[str, dict[str, Any]] = {
         "notes": ["Use MatchState for state checks and MatchStart only for the start callback."],
     },
     "geometry": {
-        "keywords": ["pathfinding", "maze", "raycast", "angle", "direction", "distance", "region"],
+        "keywords": ["pathfinding", "maze", "raycast", "angle", "direction", "distance", "region", "line of sight", "visibility"],
         "services": ["BlockService", "EntityService"],
         "events": [],
         "objects": ["Entity", "Part"],
@@ -160,6 +166,114 @@ MECHANIC_API_RECIPES: dict[str, dict[str, Any]] = {
         "notes": [
             "No official pathfinding or raycast API exists in the current cache.",
             "Use documented positions, CFrames, nearby-block/entity queries, and compatible vector comparisons.",
+        ],
+    },
+}
+
+ALGORITHM_GUIDES: dict[str, dict[str, Any]] = {
+    "target_selection": {
+        "keywords": ["aim", "aimbot", "target", "lock on", "homing", "closest enemy", "forward cone"],
+        "summary": "Choose a valid nearby target using separate visibility, alignment, and distance criteria.",
+        "services": ["EntityService", "PlayerService", "BlockService", "TeamService"],
+        "events": ["ProjectileLaunched"],
+        "objects": ["Entity", "Player", "Team"],
+        "types": ["ProjectileType"],
+        "steps": [
+            "Validate the actor, position, and CFrame before computing directions.",
+            "Query a bounded radius and reject self, dead entities, missing positions, and disallowed teams.",
+            "Normalize the actor-to-target direction only when the distance is nonzero.",
+            "Use the forward-vector dot product only as an alignment score or cone threshold.",
+            "Rank candidates with compatible quantities, such as highest alignment followed by shortest distance.",
+            "Apply a capped visibility test only after cheap filters reduce the candidate set.",
+        ],
+        "pitfalls": [
+            "Do not compare a unitless dot product directly with world-space distance.",
+            "Do not use an effectively infinite nearby-query radius.",
+            "ProjectileLaunched velocity is observable but not documented as modifiable.",
+            "Manual delayed damage is a separate simulation and can stack with native projectile damage.",
+        ],
+    },
+    "segment_visibility": {
+        "keywords": ["line of sight", "visibility", "wall check", "occlusion", "raycast", "block sampling"],
+        "summary": "Approximate line-of-sight by sampling a finite segment because no raycast API is documented.",
+        "services": ["BlockService"],
+        "events": [],
+        "objects": ["Block"],
+        "types": [],
+        "steps": [
+            "Compute the segment delta and return early for a zero-length segment.",
+            "Choose a sample count from segment length and a configured spacing, then clamp it to a maximum.",
+            "Sample interior points from origin to target and query BlockService.getBlockAt.",
+            "Ignore the actor and target endpoint cells when those cells are expected to be occupied.",
+            "Stop at the first blocking cell and return a boolean result.",
+        ],
+        "pitfalls": [
+            "Small spacing across long distances can create hundreds of block queries per target.",
+            "Point sampling can miss thin or diagonal obstructions and is only an approximation.",
+            "Run cheap range, team, and alive checks before visibility sampling.",
+        ],
+    },
+    "area_damage": {
+        "keywords": ["kill aura", "killaura", "damage aura", "area damage", "damage nearby", "combat loop"],
+        "summary": "Apply a host-controlled area effect at a bounded cadence with explicit target filters.",
+        "services": ["PlayerService", "EntityService", "CombatService", "TeamService"],
+        "events": [],
+        "objects": ["Player", "Entity", "Team"],
+        "types": [],
+        "steps": [
+            "Resolve and cache the controlling player or entity, refreshing it only when invalid.",
+            "Use one bounded nearby query per tick instead of scanning all players and then querying again.",
+            "Reject self, allies when appropriate, dead entities, and nil entity or position results.",
+            "Apply a configurable cooldown and damage amount with sensible upper bounds.",
+            "Stop or suspend the loop when the owner leaves, dies, or the match state disallows the effect.",
+        ],
+        "pitfalls": [
+            "Very short cooldowns multiply service calls and damage events.",
+            "Repeated getEntity():getPosition() chains can fail when either result is nil.",
+            "Username scans are less reliable than keeping the Player object supplied by the runtime.",
+        ],
+    },
+    "prefab_placement": {
+        "keywords": ["prefab", "structure", "sign", "model data", "part data", "load studio", "import build"],
+        "summary": "Instantiate validated relative-coordinate records through documented part and model services.",
+        "services": ["PartService", "ModelService"],
+        "events": [],
+        "objects": ["Part", "Model"],
+        "types": ["ItemType", "ModelType"],
+        "steps": [
+            "Define a small data schema for kind, asset type, local transform, size or scale, collision, anchoring, and transparency.",
+            "Validate every record and enforce an instance budget before creating anything.",
+            "Convert local transforms from a chosen origin into world transforms.",
+            "Create parts and item models through separate documented paths, then apply supported properties.",
+            "Return created handles so callers can move, update, or destroy the entire prefab later.",
+        ],
+        "pitfalls": [
+            "Do not mutate the input dataset while loading it.",
+            "Do not embed a fixed world origin inside reusable placement logic.",
+            "Part size and model scale are different concepts and should not share one unchecked field.",
+            "Large generated tables should remain data; never evaluate imported text as Lua.",
+        ],
+    },
+    "world_text": {
+        "keywords": ["world text", "block text", "voxel text", "letters", "glyph", "font", "multiline text"],
+        "summary": "Lay out original glyph-coordinate data as bounded world geometry with measured line widths.",
+        "services": ["PartService", "ModelService", "BlockService"],
+        "events": [],
+        "objects": ["Part", "Model", "Block"],
+        "types": ["ItemType"],
+        "steps": [
+            "Use an original or appropriately licensed glyph map containing relative occupied cells for supported characters.",
+            "Normalize input, replace unsupported characters with a fallback, and split text into lines.",
+            "Measure each line before placement so centering uses actual glyph widths and spacing.",
+            "Transform glyph-local coordinates through a caller-provided origin and orientation.",
+            "Create geometry in batches with a total-character and total-instance budget.",
+            "Return handles and line bounds so the result can be removed or repositioned.",
+        ],
+        "pitfalls": [
+            "A helper named for text loading is not a built-in API unless the script defines it.",
+            "Centering by character count fails for variable-width glyphs.",
+            "Nested character and cell loops can create excessive world objects.",
+            "Do not copy glyph tables from an unlicensed source; create or license the font data separately.",
         ],
     },
 }
@@ -1805,6 +1919,73 @@ def recommend_mechanic_apis(topic: str) -> dict[str, Any]:
 
 
 @bedwars_tool
+def recommend_algorithm(topic: str) -> dict[str, Any]:
+    """Return original, docs-backed algorithm guidance for complex Creative mechanics."""
+    if not topic or not topic.strip():
+        raise BedWarsMcpError("topic is required.")
+    query = topic.strip().casefold()
+    scored: list[tuple[int, str, dict[str, Any]]] = []
+    for name, guide in ALGORITHM_GUIDES.items():
+        score = sum(1 for keyword in guide["keywords"] if keyword in query)
+        if name.replace("_", " ") in query:
+            score += 3
+        if score:
+            scored.append((score, name, guide))
+    if not scored:
+        return {
+            "topic": topic,
+            "matches": [],
+            "warning": (
+                "No algorithm guide matched. Use recommend_mechanic_apis and official docs tools, "
+                "then design the behavior from documented primitives."
+            ),
+        }
+
+    docs = _load_docs_cache()
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    matches = []
+    for score, name, guide in scored[:4]:
+        verified: dict[str, list[dict[str, Any]]] = {}
+        for category in ("services", "events", "objects", "types"):
+            entries = []
+            for api_name in guide[category]:
+                lookup = _casefold_lookup(docs[category], api_name)
+                entries.append(
+                    {
+                        "name": lookup[0] if lookup else api_name,
+                        "officially_documented": bool(lookup),
+                        "source_url": (
+                            lookup[1].get("source_url")
+                            if lookup and isinstance(lookup[1], dict)
+                            else None
+                        ),
+                    }
+                )
+            verified[category] = entries
+        matches.append(
+            {
+                "algorithm": name,
+                "score": score,
+                "summary": guide["summary"],
+                **verified,
+                "steps": list(guide["steps"]),
+                "pitfalls": list(guide["pitfalls"]),
+            }
+        )
+
+    return {
+        "topic": topic,
+        "matches": matches,
+        "source_content_included": False,
+        "implementation_policy": (
+            "These are original design constraints derived from general programming principles and verified API "
+            "capabilities. Write new code from the steps; do not reproduce community source, constants, data tables, "
+            "comments, credits, or wording."
+        ),
+    }
+
+
+@bedwars_tool
 def create_script(file_name: str, code: str) -> dict[str, Any]:
     """Create or replace a Lua script inside scripts/."""
     path = _write_script(file_name, code)
@@ -2641,6 +2822,11 @@ def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
             add_warning(
                 f"Events.{canonical_event} contains task.wait(). Yielding directly inside an event callback can delay event handling."
             )
+        if canonical_event == "ProjectileLaunched" and "CombatService.damage" in segment:
+            add_warning(
+                "Events.ProjectileLaunched manually applies CombatService.damage(). This simulates an additional hit; "
+                "verify that native projectile damage cannot also apply to the same target."
+            )
 
     inferred_variables: dict[str, str] = {}
     for alias, service_name, function_name in re.findall(
@@ -2714,6 +2900,103 @@ def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
                     "A dot product is directional alignment, not distance; compare compatible quantities."
                 )
                 break
+
+    distance_name_pattern = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*(?:distance|range)[A-Za-z0-9_]*\b", re.IGNORECASE)
+    for line_number, line in enumerate(code.splitlines(), start=1):
+        if not re.search(r"[<>]=?", line):
+            continue
+        distance_names = distance_name_pattern.findall(line)
+        if not distance_names:
+            continue
+        for variable_name in dot_product_variables:
+            if re.search(rf"\b{re.escape(variable_name)}\b", line):
+                add_warning(
+                    f"Line {line_number} compares dot-product variable {variable_name} with a distance/range-named "
+                    "value. Keep alignment scoring and world-space distance ranking separate."
+                )
+                break
+
+    for distance_name, dot_name in re.findall(
+        r"\b([A-Za-z_][A-Za-z0-9_]*(?:distance|range)[A-Za-z0-9_]*)\s*=\s*"
+        r"([A-Za-z_][A-Za-z0-9_]*)\b",
+        code_for_global_scan,
+        re.IGNORECASE,
+    ):
+        if dot_name in dot_product_variables:
+            add_warning(
+                f"{distance_name} is assigned dot-product variable {dot_name}. "
+                "Store alignment and distance in separate variables with compatible units."
+            )
+
+    nearby_literal_pattern = re.compile(
+        r"\b(?:EntityService\s*\.\s*getNearbyEntities|PlayerService\s*\.\s*getNearbyPlayers)"
+        r"\s*\([^\n]*,\s*(math\s*\.\s*huge|[0-9]+(?:\.[0-9]+)?(?:e[+-]?[0-9]+)?)\s*\)",
+        re.IGNORECASE,
+    )
+    for match in nearby_literal_pattern.finditer(code_for_global_scan):
+        literal = re.sub(r"\s+", "", match.group(1)).casefold()
+        radius = float("inf") if literal == "math.huge" else float(literal)
+        if radius >= 1000:
+            line_number = code_for_global_scan.count("\n", 0, match.start()) + 1
+            add_warning(
+                f"Line {line_number} uses a very large nearby-query radius ({match.group(1)}). "
+                "Use a bounded design radius to avoid scanning most or all entities every update."
+            )
+
+    combat_or_scan = any(
+        marker in code_for_global_scan
+        for marker in (
+            "CombatService.damage",
+            "EntityService.getNearbyEntities",
+            "PlayerService.getNearbyPlayers",
+            "PlayerService.getPlayers",
+        )
+    )
+    if combat_or_scan:
+        for match in re.finditer(
+            r"\bwhile\s+task\s*\.\s*wait\s*\(\s*([0-9]+(?:\.[0-9]+)?)\s*\)\s+do\b",
+            code_for_global_scan,
+            re.IGNORECASE,
+        ):
+            interval = float(match.group(1))
+            if interval <= 0.1:
+                line_number = code_for_global_scan.count("\n", 0, match.start()) + 1
+                add_warning(
+                    f"Line {line_number} runs combat or nearby-player work every {interval:g} seconds. "
+                    "Use a bounded configurable cadence and avoid repeated full-player scans."
+                )
+
+    for match in re.finditer(
+        r":\s*(getEntity|getPlayer|getPosition|getCFrame)\s*\(\s*\)\s*:\s*"
+        r"([A-Za-z_][A-Za-z0-9_]*)\s*\(",
+        code_for_global_scan,
+    ):
+        line_number = code_for_global_scan.count("\n", 0, match.start()) + 1
+        add_warning(
+            f"Line {line_number} chains {match.group(1)}() into {match.group(2)}() without checking the intermediate "
+            "result. Store it locally and check for nil first."
+        )
+
+    for helper_name in ("loadText", "loadStudio"):
+        if not re.search(rf"\b{helper_name}\s*\(", code_for_global_scan):
+            continue
+        if re.search(rf"\b(?:local\s+)?function\s+{helper_name}\s*\(", code_for_global_scan):
+            continue
+        add_warning(
+            f"{helper_name}(...) is not a documented built-in. Define an original helper in this project or replace "
+            "it with documented PartService, ModelService, and BlockService calls."
+        )
+
+    creates_world_objects = re.search(
+        r"\b(?:PartService\s*\.\s*createPart|ModelService\s*\.\s*create(?:Model|ItemModel))\s*\(",
+        code_for_global_scan,
+    )
+    loop_count = len(re.findall(r"\b(?:for|while)\b", code_for_global_scan))
+    if creates_world_objects and loop_count >= 2:
+        add_warning(
+            "World objects are created inside multi-loop logic. Validate input records and enforce a total instance "
+            "budget before creating parts or models."
+        )
 
     return {
         "file_name": file_name,
