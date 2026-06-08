@@ -30,6 +30,7 @@ def bedwars_tool(function: Any) -> Any:
 PACKAGE_ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = Path(os.environ.get("CREATIVE_SCRIPTING_MCP_ROOT", PACKAGE_ROOT.parent.parent)).resolve()
 DOCS_CACHE_DIR = PROJECT_ROOT / "docs_cache"
+FANDOM_CACHE_DIR = DOCS_CACHE_DIR / "fandom"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 PROJECTS_DIR = SCRIPTS_DIR / "projects"
 DEFAULT_PROJECT_NAME = "default"
@@ -147,6 +148,33 @@ def _load_docs_cache() -> dict[str, dict[str, Any]]:
         category: _read_json(DOCS_CACHE_DIR / file_name)
         for category, file_name in DOC_FILES.items()
     }
+
+
+def _load_fandom_manifest() -> dict[str, Any]:
+    return _read_json(FANDOM_CACHE_DIR / "manifest.json")
+
+
+def _load_fandom_pages() -> list[dict[str, Any]]:
+    path = FANDOM_CACHE_DIR / "pages.json"
+    if not path.exists():
+        return []
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except json.JSONDecodeError as exc:
+        raise BedWarsMcpError(f"Fandom cache file is invalid JSON: {path.name}: {exc}") from exc
+    if not isinstance(data, list):
+        raise BedWarsMcpError("Fandom cache pages.json must contain a JSON array.")
+    return [record for record in data if isinstance(record, dict)]
+
+
+def _fandom_page_lookup(title: str) -> dict[str, Any] | None:
+    wanted = title.strip().replace("_", " ").casefold()
+    for record in _load_fandom_pages():
+        record_title = str(record.get("title") or "")
+        if record_title.replace("_", " ").casefold() == wanted:
+            return record
+    return None
 
 
 def _casefold_lookup(records: dict[str, Any], name: str) -> tuple[str, Any] | None:
@@ -1289,6 +1317,126 @@ def read_type(type_name: str) -> dict[str, Any]:
         "reference_forms": reference_forms,
         "reference_note": reference_note,
     }
+
+
+@bedwars_tool
+def fandom_cache_status() -> dict[str, Any]:
+    """Return local Roblox BedWars Fandom cache status and refresh instructions."""
+    manifest = _load_fandom_manifest()
+    pages = _load_fandom_pages()
+    return {
+        "available": bool(pages),
+        "cache_dir": str(FANDOM_CACHE_DIR),
+        "page_count": len(pages),
+        "manifest": manifest,
+        "refresh_command": "python maintenance/refresh_fandom_cache.py --include-text",
+        "source_url": "https://robloxbedwars.fandom.com/wiki/BedWars_Wiki",
+        "note": (
+            "Fandom is a gameplay/wiki reference cache. Official scripting API validation still uses docs.easy.gg."
+        ),
+    }
+
+
+@bedwars_tool
+def search_fandom_cache(query: str, limit: int = 25, include_text: bool = False) -> dict[str, Any]:
+    """Search cached Roblox BedWars Fandom pages by title, summary, categories, and optional text."""
+    if not query or not query.strip():
+        raise BedWarsMcpError("query is required.")
+    pages = _load_fandom_pages()
+    if not pages:
+        return {
+            "query": query,
+            "count": 0,
+            "results": [],
+            "warning": "Fandom cache is empty. Run python maintenance/refresh_fandom_cache.py first.",
+        }
+
+    query_text = query.strip()
+    terms = [term.casefold() for term in re.findall(r"[A-Za-z0-9_]+", query_text)]
+    if not terms:
+        terms = [query_text.casefold()]
+
+    scored: list[tuple[int, str, dict[str, Any]]] = []
+    for record in pages:
+        title = str(record.get("title") or "")
+        categories = [str(category) for category in record.get("categories") or []]
+        summary = str(record.get("summary") or "")
+        extract = str(record.get("extract") or "") if include_text else ""
+        haystacks = {
+            "title": title.casefold(),
+            "categories": " ".join(categories).casefold(),
+            "summary": summary.casefold(),
+            "extract": extract.casefold(),
+        }
+        score = 0
+        for term in terms:
+            if term in haystacks["title"]:
+                score += 20
+            if term in haystacks["categories"]:
+                score += 8
+            if term in haystacks["summary"]:
+                score += 5
+            if include_text and term in haystacks["extract"]:
+                score += 2
+        if title.casefold() == query_text.casefold():
+            score += 100
+        if score <= 0:
+            continue
+        result = {
+            "title": title,
+            "url": record.get("url"),
+            "summary": summary[:500],
+            "categories": categories[:20],
+            "length": record.get("length"),
+            "lastrevid": record.get("lastrevid"),
+        }
+        if include_text:
+            result["text_preview"] = extract[:1500]
+        scored.append((score, title.casefold(), result))
+
+    result_limit = max(1, min(int(limit), 50))
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    results = [item[2] for item in scored[:result_limit]]
+    return {
+        "query": query_text,
+        "count": len(scored),
+        "returned": len(results),
+        "include_text": include_text,
+        "results": results,
+        "warning": None if results else "No cached Fandom page matched. Refresh the cache or check the title.",
+    }
+
+
+@bedwars_tool
+def read_fandom_page(title: str, include_text: bool = False) -> dict[str, Any]:
+    """Read one cached Roblox BedWars Fandom page record by title."""
+    if not title or not title.strip():
+        raise BedWarsMcpError("title is required.")
+    record = _fandom_page_lookup(title)
+    if not record:
+        return {
+            "title": title,
+            "found": False,
+            "warning": "Page not found in the local Fandom cache. Run search_fandom_cache or refresh the cache.",
+        }
+    result = {
+        "found": True,
+        "title": record.get("title"),
+        "url": record.get("url"),
+        "summary": record.get("summary"),
+        "categories": record.get("categories"),
+        "length": record.get("length"),
+        "lastrevid": record.get("lastrevid"),
+        "touched": record.get("touched"),
+        "thumbnail": record.get("thumbnail"),
+        "image": record.get("image"),
+        "license_note": "Roblox BedWars Wiki on Fandom is CC-BY-SA unless a page states otherwise.",
+    }
+    if include_text:
+        result["extract"] = record.get("extract") or ""
+    else:
+        result["text_note"] = "Pass include_text=true to return cached plain-text extract when the cache was built with --include-text."
+    return result
 
 
 @bedwars_tool

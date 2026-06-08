@@ -8,7 +8,8 @@ SERVER_INSTRUCTIONS = (
     "Use documented in-game Lua APIs, local project files, and Code Sync. "
     "For normal project work, prefer MCP tools over shell commands: use "
     "read_directory_project/read_directory_script instead of PowerShell folder scans, "
-    "search_docs/read_service/read_event/read_object/read_type instead of broad filesystem searches, and "
+    "search_docs/read_service/read_event/read_object/read_type instead of broad filesystem searches, "
+    "search_fandom_cache/read_fandom_page for cached gameplay wiki lookups, and "
     "force_sync_directory when a visible first sync is needed. "
     "Use service keywords to resolve similar services: AnnouncementService is for "
     "announcement banners, ChatService is for public chat lines, and MessageService "
@@ -54,6 +55,24 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "category": "docs",
         "description": "Read complete enum keys and runtime string values for one documented type.",
         "context": "Use for ItemType, ProjectileType, SoundType, KeyCode, AbilityType, and similar value sets.",
+    },
+    "fandom_cache_status": {
+        "name": "fandom_cache_status",
+        "category": "fandom docs",
+        "description": "Show local Roblox BedWars Fandom cache status and refresh command.",
+        "context": "Use before Fandom searches to confirm whether gameplay/wiki data has been collected.",
+    },
+    "search_fandom_cache": {
+        "name": "search_fandom_cache",
+        "category": "fandom docs",
+        "description": "Search cached Roblox BedWars Fandom gameplay/wiki pages.",
+        "context": "Use for non-scripting reference data such as kits, items, commands, updates, maps, blocks, and gameplay concepts. Official Lua APIs still come from docs.easy.gg tools.",
+    },
+    "read_fandom_page": {
+        "name": "read_fandom_page",
+        "category": "fandom docs",
+        "description": "Read one cached Roblox BedWars Fandom page record.",
+        "context": "Use after search_fandom_cache when a page title is known. Keep source URL and CC-BY-SA attribution when using Fandom content.",
     },
     "create_script": {
         "name": "create_script",

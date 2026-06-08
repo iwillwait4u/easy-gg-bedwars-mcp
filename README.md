@@ -15,6 +15,12 @@ The docs cache is seeded from official BedWars Creative documentation at `docs.e
 - Types index: https://docs.easy.gg/scripting/bedwars-scripting/types
 - Utilities index: https://docs.easy.gg/scripting/bedwars-scripting/utilities
 
+The optional Fandom cache is seeded from the Roblox BedWars Wiki on Fandom:
+
+- Fandom wiki: https://robloxbedwars.fandom.com/wiki/BedWars_Wiki
+- MediaWiki API: https://robloxbedwars.fandom.com/api.php
+
+Use Fandom data for gameplay/wiki references such as kits, items, blocks, commands, maps, and updates. Do not use it as proof that a Lua scripting API exists; official scripting validation still comes from `docs.easy.gg`.
 
 ## Setup
 
@@ -73,12 +79,37 @@ Tool names, descriptions, and usage context are registered from `src/creative_sc
 Main groups:
 
 - Docs: search/read complete cached services, events, objects, and types.
+- Fandom docs: search/read cached gameplay wiki pages from Roblox BedWars Fandom.
 - Script files: create, read, diff/edit, validate, and delete Lua files.
 - Projects: organize `sync/`, `drafts/`, and `prompts/` folders.
 - Code Sync: connect a token, sync one folder, check status, and run a watcher.
 - Debugging: validate external scripts, generate event traces, report runtime capabilities, and explain pasted console errors.
 
 Ask the MCP client to list tools for exact schemas.
+
+## Fandom Gameplay Cache
+
+Collect gameplay/wiki data from Roblox BedWars Fandom into a local cache:
+
+```powershell
+python maintenance/refresh_fandom_cache.py --include-text
+```
+
+This writes ignored generated files under `docs_cache/fandom/`:
+
+- `manifest.json`
+- `pages.json`
+- `categories.json`
+
+Then use:
+
+```text
+fandom_cache_status()
+search_fandom_cache(query="commands", include_text=true)
+read_fandom_page(title="Commands", include_text=true)
+```
+
+Fandom content is community-authored and CC-BY-SA unless a page says otherwise. Keep source URLs and attribution when using it. The repo commits the collector and cache README, not the scraped JSON dump.
 
 ## BedWars Code Sync
 
