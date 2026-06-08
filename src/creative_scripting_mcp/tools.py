@@ -11,6 +11,9 @@ SERVER_INSTRUCTIONS = (
     "search_docs/read_service/read_event/read_object/read_type instead of broad filesystem searches, "
     "search_fandom_cache/read_fandom_page for cached gameplay wiki lookups, and "
     "force_sync_directory when a visible first sync is needed. "
+    "Community reference exports may be audited with audit_reference_export, but they never override official "
+    "docs.easy.gg API records. Use recommend_mechanic_apis to turn community-inspired mechanics into original, "
+    "docs-backed implementations. "
     "Use service keywords to resolve similar services: AnnouncementService is for "
     "announcement banners, ChatService is for public chat lines, and MessageService "
     "is for broadcast/info/error game messages. "
@@ -54,7 +57,7 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "name": "read_type",
         "category": "docs",
         "description": "Read complete enum keys and runtime string values for one documented type.",
-        "context": "Use for ItemType, ProjectileType, SoundType, KeyCode, AbilityType, and similar value sets.",
+        "context": "Use for ItemType, ProjectileType, SoundType, AbilityType, AbilityInputType, and similar value sets.",
     },
     "fandom_cache_status": {
         "name": "fandom_cache_status",
@@ -73,6 +76,18 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "category": "fandom docs",
         "description": "Read one cached Roblox BedWars Fandom page record.",
         "context": "Use after search_fandom_cache when a page title is known. Keep source URL and CC-BY-SA attribution when using Fandom content.",
+    },
+    "audit_reference_export": {
+        "name": "audit_reference_export",
+        "category": "reference analysis",
+        "description": "Audit a structured community script export using aggregate API and mechanic signals only.",
+        "context": "Use for user-provided reference datasets. It returns no scripts, message text, authors, or copied implementations. Community-only APIs remain unverified.",
+    },
+    "recommend_mechanic_apis": {
+        "name": "recommend_mechanic_apis",
+        "category": "reference analysis",
+        "description": "Map a requested mechanic to official services, events, objects, and types.",
+        "context": "Use before implementing persistence, abilities, input/UI, building, entities, combat, chat commands, announcements, effects, teams, or geometry.",
     },
     "create_script": {
         "name": "create_script",
@@ -223,6 +238,12 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "category": "authoring",
         "description": "Validate a Lua script inside an outside project folder.",
         "context": "Use before syncing user project scripts. It validates services, methods, enums, callback fields, field mutability, and basic syntax structure.",
+    },
+    "validate_directory_project": {
+        "name": "validate_directory_project",
+        "category": "authoring",
+        "description": "Validate every Lua script in an outside project's scripts/ or drafts/ folder.",
+        "context": "Use for project-wide pre-sync checks and to find all files with errors, warnings, community-only APIs, or undocumented calls.",
     },
     "create_event_trace": {
         "name": "create_event_trace",

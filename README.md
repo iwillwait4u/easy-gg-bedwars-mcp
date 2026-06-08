@@ -80,12 +80,21 @@ Main groups:
 
 - Docs: search/read complete cached services, events, objects, and types.
 - Fandom docs: search/read cached gameplay wiki pages from Roblox BedWars Fandom.
+- Reference analysis: audit user-provided exports and map mechanics to official APIs without copying source scripts.
 - Script files: create, read, diff/edit, validate, and delete Lua files.
 - Projects: organize `sync/`, `drafts/`, and `prompts/` folders.
 - Code Sync: connect a token, sync one folder, check status, and run a watcher.
 - Debugging: validate external scripts, generate event traces, report runtime capabilities, and explain pasted console errors.
 
 Ask the MCP client to list tools for exact schemas.
+
+## Community Reference Exports
+
+Use `audit_reference_export(directory="C:\\path\\to\\export")` to inspect a structured script export. The tool returns aggregate mechanic, API, and risk counts only. It does not return or import scripts, messages, authors, or copied implementations.
+
+Use `recommend_mechanic_apis(topic="persistent player upgrades")` to map an observed mechanic to official cached services, events, objects, and types before writing original code. Community evidence can suggest behavior and test cases, but only the `docs.easy.gg` cache validates scripting APIs.
+
+Run `validate_directory_project(directory="C:\\path\\to\\project")` before sync to validate every Lua file under `scripts/`.
 
 ## Fandom Gameplay Cache
 
