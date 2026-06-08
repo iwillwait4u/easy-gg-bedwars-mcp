@@ -36,6 +36,7 @@ SYNC_SESSION: dict[str, Any] = {}
 SYNC_LOCK = threading.RLock()
 SYNC_WATCHER_STOP: threading.Event | None = None
 SYNC_WATCHER_THREAD: threading.Thread | None = None
+EMPTY_SYNC_PLACEHOLDER_CODE = "-- No active BedWars scripts.\n"
 
 DOC_FILES = {
     "services": "services.json",
@@ -475,6 +476,45 @@ def _auto_upload_root(root: Path, paths: list[Path]) -> Path:
     return root
 
 
+def _empty_sync_placeholder_path(root: Path, glob_pattern: str, upload_root: Path | None) -> Path:
+    if upload_root is not None:
+        return upload_root.resolve() / "main.lua"
+
+    normalized = glob_pattern.replace("\\", "/").strip("/")
+    static_parts: list[str] = []
+    for part in normalized.split("/"):
+        if not part or any(character in part for character in "*?["):
+            break
+        static_parts.append(part)
+
+    if static_parts:
+        base = root.joinpath(*static_parts)
+        if base.suffix:
+            base = base.parent
+    elif normalized.startswith("**/") and (root / "scripts").is_dir():
+        base = root / "scripts"
+    else:
+        base = root
+    return base / "main.lua"
+
+
+def _remove_generated_empty_placeholder(paths: list[Path]) -> list[Path]:
+    if len(paths) < 2:
+        return paths
+
+    remaining: list[Path] = []
+    for path in paths:
+        is_generated_placeholder = (
+            path.name.casefold() == "main.lua"
+            and path.read_text(encoding="utf-8") == EMPTY_SYNC_PLACEHOLDER_CODE
+        )
+        if is_generated_placeholder:
+            path.unlink()
+            continue
+        remaining.append(path)
+    return remaining
+
+
 def _sync_directory_with_token(
     sync_token: str,
     directory: str,
@@ -484,14 +524,36 @@ def _sync_directory_with_token(
     allow_empty: bool = False,
 ) -> dict[str, Any]:
     root, paths = _directory_sync_file_paths(directory, glob_pattern)
+    paths = _remove_generated_empty_placeholder(paths)
+    empty_sync_fallback = False
+    placeholder_path: Path | None = None
+
+    if not paths and allow_empty:
+        placeholder_path = _empty_sync_placeholder_path(root, glob_pattern, upload_root)
+        placeholder_path.parent.mkdir(parents=True, exist_ok=True)
+        placeholder_path.write_text(EMPTY_SYNC_PLACEHOLDER_CODE, encoding="utf-8")
+        paths = [placeholder_path.resolve()]
+        empty_sync_fallback = True
+
     if not paths and not allow_empty:
         raise BedWarsMcpError(f"No .lua files matched inside {root} for glob_pattern: {glob_pattern}")
 
     selected_upload_root = upload_root or _auto_upload_root(root, paths)
-    result = _post_sync_files(sync_token, paths, upload_root=selected_upload_root, allow_empty=allow_empty)
+    result = _post_sync_files(sync_token, paths, upload_root=selected_upload_root)
     result["directory"] = str(root)
     result["glob_pattern"] = glob_pattern
     result["upload_root"] = str(selected_upload_root)
+    result["empty_sync_fallback"] = empty_sync_fallback
+    result["placeholder_file"] = (
+        str(placeholder_path.relative_to(root)).replace("\\", "/")
+        if placeholder_path is not None
+        else None
+    )
+    if empty_sync_fallback:
+        result["remote_note"] = (
+            "BedWars rejects a zero-file payload. The generated comment-only main.lua replaces the remote file set, "
+            "so all previous active scripts are removed."
+        )
     return result
 
 
@@ -720,8 +782,11 @@ def _post_sync_files(
         raise BedWarsMcpError("sync_token is required. Generate it in the BedWars script editor Sync tab.")
     if not SYNC_TOKEN_RE.match(token):
         raise BedWarsMcpError("sync_token has an unexpected format. Paste only the token, with no URL or spaces.")
-    if not paths and not allow_empty:
-        raise BedWarsMcpError("No .lua files matched the sync target.")
+    if not paths:
+        raise BedWarsMcpError(
+            "Code Sync rejects zero-file payloads. Use sync_directory(..., allow_empty=true) so the MCP can upload "
+            "a harmless placeholder and remove the previous remote scripts."
+        )
 
     uploaded = [path.name for path in paths]
     duplicate_names = sorted({name for name in uploaded if uploaded.count(name) > 1})
