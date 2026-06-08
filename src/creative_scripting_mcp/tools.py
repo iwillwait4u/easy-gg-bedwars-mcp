@@ -160,14 +160,14 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "sync_directory": {
         "name": "sync_directory",
         "category": "sync",
-        "description": "Upload an outside folder using the visible hard-sync path by default.",
-        "context": "Use for project folders outside this repo. By default this prepares scripts/, updates zz_sync_probe.lua, reads bwconfig.lua syncGlob when present, uploads scripts/**/*.lua otherwise, and connects the watcher. Use allow_empty=true for intentional delete-all syncs.",
+        "description": "Upload an outside folder using the confirmed VS Code extension-compatible sync path.",
+        "context": "Use for project folders outside this repo. It prepares scripts/, updates zz_sync_probe.lua, reads bwconfig.lua syncGlob when present, sends extension-compatible multipart uploads twice for delivery confirmation, and connects the watcher. Use allow_empty=true for intentional delete-all syncs.",
     },
     "force_sync_directory": {
         "name": "force_sync_directory",
         "category": "sync",
-        "description": "Hard-sync an outside folder by preparing it, updating a visible probe script, uploading scripts/, and connecting the watcher.",
-        "context": "Use when a normal sync returned 201 but the Roblox editor did not visibly refresh, or when the user wants the strongest first sync for a new folder.",
+        "description": "Hard-sync an outside folder with a visible probe and confirmed extension-compatible delivery.",
+        "context": "Use when the Roblox editor needs an explicit first sync or visible probe. It uses the same confirmation transport as sync_directory.",
     },
     "edit_script": {
         "name": "edit_script",

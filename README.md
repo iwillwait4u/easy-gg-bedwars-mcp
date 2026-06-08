@@ -128,7 +128,7 @@ sync_directory(
 )
 ```
 
-By default, `sync_directory` and `connect_sync` use the visible hard-sync path: they prepare `scripts/`, `drafts/`, `prompts/`, `bwconfig.lua`, `bedwars-project.json`, and `scripts/main.lua` when needed, update `scripts/zz_sync_probe.lua`, upload `scripts/**/*.lua`, and connect the watcher. Use `allow_empty=true` only when intentionally deleting every remote script.
+By default, `sync_directory` and `connect_sync` use the visible hard-sync path: they prepare `scripts/`, `drafts/`, `prompts/`, `bwconfig.lua`, `bedwars-project.json`, and `scripts/main.lua` when needed, update `scripts/zz_sync_probe.lua`, upload `scripts/**/*.lua`, and connect the watcher. Uploads match the official VS Code extension's multipart filename, content type, and request headers, then repeat once after a short delay to confirm delivery to the active Roblox editor session. Use `allow_empty=true` only when intentionally deleting every remote script.
 
 For normal project work, use MCP tools instead of terminal file scans:
 

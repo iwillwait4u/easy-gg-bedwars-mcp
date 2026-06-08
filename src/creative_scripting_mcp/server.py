@@ -713,6 +713,7 @@ def _post_sync_files(
     *,
     upload_root: Path,
     allow_empty: bool = False,
+    delivery_attempts: int = 2,
 ) -> dict[str, Any]:
     token = (sync_token or "").strip()
     if not token:
@@ -722,40 +723,84 @@ def _post_sync_files(
     if not paths and not allow_empty:
         raise BedWarsMcpError("No .lua files matched the sync target.")
 
-    root = upload_root.resolve()
-    uploaded = [str(path.relative_to(root)).replace("\\", "/") for path in paths]
+    uploaded = [path.name for path in paths]
+    duplicate_names = sorted({name for name in uploaded if uploaded.count(name) > 1})
+    if duplicate_names:
+        raise BedWarsMcpError(
+            "Code Sync uses script basenames like the official VS Code extension. "
+            f"Rename duplicate files before syncing: {', '.join(duplicate_names)}"
+        )
+
     url = f"{CODE_SYNC_BASE_URL}/servers/sync-code/{token}/sync-files"
+    attempts = max(1, min(int(delivery_attempts), 3))
+    request_headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Encoding": "gzip, compress, deflate, br",
+        "User-Agent": "axios/1.5.0",
+    }
+    attempt_results: list[dict[str, Any]] = []
 
     try:
-        with ExitStack() as stack:
-            files = [
-                (
-                    "files",
+        for attempt_number in range(1, attempts + 1):
+            with ExitStack() as stack:
+                files = [
                     (
-                        str(path.relative_to(root)).replace("\\", "/"),
-                        stack.enter_context(path.open("rb")),
-                        "text/x-lua",
-                    ),
-                )
-                for path in paths
-            ]
-            if files:
-                response = httpx.post(url, files=files, timeout=30.0)
-            else:
-                response = httpx.post(url, files={}, timeout=30.0)
+                        "files",
+                        (
+                            path.name,
+                            stack.enter_context(path.open("rb")),
+                            "text/x-lua",
+                        ),
+                    )
+                    for path in paths
+                ]
+                if files:
+                    response = httpx.post(url, files=files, headers=request_headers, timeout=30.0)
+                else:
+                    response = httpx.post(url, files={}, headers=request_headers, timeout=30.0)
+
+            response_text = response.text.strip()
+            try:
+                response_value: Any = response.json()
+            except ValueError:
+                response_value = response_text or None
+            attempt_results.append(
+                {
+                    "attempt": attempt_number,
+                    "status_code": response.status_code,
+                    "response": response_value,
+                    "ok": 200 <= response.status_code < 300,
+                }
+            )
+            if attempt_number < attempts:
+                time.sleep(0.35)
     except httpx.RequestError as exc:
         raise BedWarsMcpError(f"Code Sync request failed before BedWars responded: {exc}") from exc
 
+    successful_attempts = [attempt for attempt in attempt_results if attempt["ok"]]
+    last_attempt = attempt_results[-1]
+    last_success = successful_attempts[-1] if successful_attempts else last_attempt
+    ok = bool(successful_attempts)
     return {
-        "ok": 200 <= response.status_code < 300,
-        "status_code": response.status_code,
+        "ok": ok,
+        "status_code": last_success["status_code"],
         "uploaded_files": uploaded,
         "file_count": len(uploaded),
+        "delivery_attempts": len(attempt_results),
+        "attempt_status_codes": [attempt["status_code"] for attempt in attempt_results],
+        "server_response": last_success["response"],
+        "extension_compatible_transport": True,
         "token_stored": False,
         "note": "The sync token was used for this request only and was not stored or returned.",
-        "warning": None
-        if 200 <= response.status_code < 300
-        else "Sync failed. Generate a fresh token in the BedWars script editor Sync tab and try again.",
+        "warning": (
+            None
+            if ok and len(successful_attempts) == len(attempt_results)
+            else (
+                "The initial upload was accepted, but a confirmation attempt failed."
+                if ok
+                else "Sync failed. Generate a fresh token in the BedWars script editor Sync tab and try again."
+            )
+        ),
     }
 
 
