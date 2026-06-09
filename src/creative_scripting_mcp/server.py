@@ -52,6 +52,17 @@ COMMUNITY_ONLY_SERVICE_GUIDANCE = {
         "or documented UIService controls where applicable."
     ),
 }
+UNDOCUMENTED_CHAT_GUIDANCE = {
+    "sendRichMessage": (
+        "ChatService.sendRichMessage(...) is not in the current official docs cache. "
+        "Only ChatService.sendMessage(message, color) is documented, and its color applies to the whole message."
+    ),
+    "BeforePlayerChatted": (
+        "Events.BeforePlayerChatted is not in the current official docs cache. "
+        "Events.PlayerChatted is documented, but its player and message fields are read-only and it has no "
+        "documented cancelled field."
+    ),
+}
 REFERENCE_CONFIRMED_STATUSES = {
     "script_embedded_in_thread",
     "script_link_in_thread",
@@ -122,12 +133,16 @@ MECHANIC_API_RECIPES: dict[str, dict[str, Any]] = {
         ],
     },
     "chat_commands": {
-        "keywords": ["chat", "command", "slash command", "player chatted"],
+        "keywords": ["chat", "command", "slash command", "player chatted", "chat tag", "rich text", "team color"],
         "services": ["ChatService", "MessageService"],
         "events": ["PlayerChatted"],
-        "objects": ["Player"],
+        "objects": ["Player", "Team"],
         "types": [],
-        "notes": ["Parse command prefixes and arguments defensively; exclude whisper/team routes when required."],
+        "notes": [
+            "Parse command prefixes and arguments defensively; exclude whisper/team routes when required.",
+            "PlayerChatted cannot currently cancel or replace the native message through documented fields.",
+            "ChatService.sendMessage supports one optional color for the complete message, not independently colored segments.",
+        ],
     },
     "announcements": {
         "keywords": ["announcement", "broadcast", "message", "all servers"],
@@ -296,6 +311,28 @@ ALGORITHM_GUIDES: dict[str, dict[str, Any]] = {
             "Do not copy glyph tables from an unlicensed source; create or license the font data separately.",
         ],
     },
+    "chat_formatting": {
+        "keywords": ["chat tag", "rich chat", "rich text", "tag color", "team colored name", "chat segments", "cancel chat"],
+        "summary": "Design chat commands around the currently documented whole-message API and report unsupported formatting requirements.",
+        "services": ["ChatService", "MessageService", "TeamService"],
+        "events": ["PlayerChatted"],
+        "objects": ["Player", "Team"],
+        "types": [],
+        "steps": [
+            "Read PlayerChatted for the player and plain message text.",
+            "Parse command routes before generating any replacement message.",
+            "Use MessageService for private info or error responses and ChatService.sendMessage for a public line.",
+            "Use the optional ChatService color only when one color for the entire generated line is acceptable.",
+            "Keep tag, player identity, and body as logical segments in project data even though segmented rendering is unavailable.",
+        ],
+        "pitfalls": [
+            "PlayerChatted has no documented cancelled field, so commands may remain visible in native chat.",
+            "ChatService has no documented send-as-player or preserve-team-formatting operation.",
+            "Team exposes name and id, but no documented color or teamColor property.",
+            "Rich-text tags may render literally because supported markup is not documented.",
+            "The Code Sync transport cannot retrieve runtime console output to verify client rendering.",
+        ],
+    },
 }
 
 CREATIVE_MECHANIC_ALIASES: dict[str, dict[str, Any]] = {
@@ -356,6 +393,10 @@ EVENT_CALLBACK_RE = re.compile(
 ITEM_TYPE_RE = re.compile(r"\bItemType\s*\.\s*([A-Z][A-Z0-9_]*)\b")
 TYPE_VALUE_RE = re.compile(r"\b([A-Z][A-Za-z0-9]+Type)\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)\b")
 LUA_STRING_RE = re.compile(r"'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"")
+RICH_TEXT_TAG_RE = re.compile(
+    r"<\s*/?\s*(?:font|b|i|u|s|stroke|br)\b[^>]*>",
+    re.IGNORECASE,
+)
 FENCED_CODE_RE = re.compile(r"```(?:lua|luau|bwlua)?\s*(.*?)```", re.IGNORECASE | re.DOTALL)
 SYNC_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{6,128}$")
 LUA_STRING_OR_COMMENT_RE = re.compile(
@@ -2023,6 +2064,101 @@ def recommend_algorithm(topic: str) -> dict[str, Any]:
 
 
 @bedwars_tool
+def chat_capabilities() -> dict[str, Any]:
+    """Report documented chat APIs, missing formatting capabilities, and a proposed future contract."""
+    docs = _load_docs_cache()
+    chat_lookup = _casefold_lookup(docs["services"], "ChatService")
+    chatted_lookup = _casefold_lookup(docs["events"], "PlayerChatted")
+    team_lookup = _casefold_lookup(docs["objects"], "Team")
+    chat_record = chat_lookup[1] if chat_lookup else {}
+    chatted_record = chatted_lookup[1] if chatted_lookup else {}
+    team_record = team_lookup[1] if team_lookup else {}
+
+    return {
+        "documented": {
+            "send_public_message": {
+                "supported": True,
+                "api": "ChatService.sendMessage(message: string, color: Color3 | nil)",
+                "color_scope": "whole_message",
+                "source_url": chat_record.get("source_url"),
+            },
+            "observe_player_chat": {
+                "supported": True,
+                "api": "Events.PlayerChatted(function(event) ... end)",
+                "fields": ["player", "message"],
+                "modifiable_fields": [],
+                "source_url": chatted_record.get("source_url"),
+            },
+            "team_identity": {
+                "supported": True,
+                "properties": ["name", "id"],
+                "source_url": team_record.get("source_url"),
+            },
+        },
+        "missing_from_official_cache": {
+            "rich_message_api": {
+                "supported": False,
+                "requested_api": "ChatService.sendRichMessage(segments)",
+            },
+            "cancellable_before_chat_event": {
+                "supported": False,
+                "requested_api": "Events.BeforePlayerChatted",
+            },
+            "send_as_player": {
+                "supported": False,
+                "note": "No documented operation preserves native player name or team formatting for a generated line.",
+            },
+            "team_color_property": {
+                "supported": False,
+                "requested_properties": ["Team.color", "Team.teamColor"],
+            },
+            "independent_message_segments": {
+                "supported": False,
+                "note": "No documented per-segment text, color, or preserveTeamColor schema exists.",
+            },
+            "rich_text_tags": {
+                "supported": False,
+                "supported_tags": [],
+                "note": "No rich-text tags are documented for ChatService.sendMessage.",
+            },
+            "runtime_console_retrieval": {
+                "supported": False,
+                "note": "Code Sync uploads scripts but cannot retrieve the Host Panel Console.",
+            },
+        },
+        "proposed_future_contract": {
+            "status": "proposal_only_not_callable",
+            "send_rich_message": {
+                "name": "ChatService.sendRichMessage",
+                "input": {
+                    "segments": [
+                        {
+                            "text": "string",
+                            "color": "Color3 | nil",
+                            "preserveTeamColor": "bool | nil",
+                        }
+                    ]
+                },
+            },
+            "before_player_chatted": {
+                "name": "Events.BeforePlayerChatted",
+                "fields": {
+                    "player": "Player",
+                    "message": "string",
+                    "cancelled": "bool, modifiable",
+                },
+            },
+        },
+        "current_fallbacks": [
+            "Use MessageService.sendInfo/sendError for private command feedback.",
+            "Use ChatService.sendMessage for one generated public line with one optional whole-message color.",
+            "Expect the original PlayerChatted message to remain visible because cancellation is unavailable.",
+            "Treat rich-text markup as unsupported until official docs explicitly define accepted tags.",
+        ],
+    }
+
+
+@bedwars_tool
 def resolve_creative_mechanic(prompt: str) -> dict[str, Any]:
     """Classify mechanic labels and route them through the Creative Host Panel authoring workflow."""
     if not prompt or not prompt.strip():
@@ -2820,9 +2956,12 @@ def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
         canonical, record = service_lookup
         known_functions = _known_service_functions(record)
         if known_functions and function_name not in known_functions:
-            add_warning(
-                f"{canonical}.{function_name}() is not listed for {canonical} in docs_cache."
-            )
+            if canonical == "ChatService" and function_name in UNDOCUMENTED_CHAT_GUIDANCE:
+                add_warning(UNDOCUMENTED_CHAT_GUIDANCE[function_name])
+            else:
+                add_warning(
+                    f"{canonical}.{function_name}() is not listed for {canonical} in docs_cache."
+                )
         if separator == ":" and canonical.endswith("Service"):
             add_warning(
                 f"{canonical}:{function_name}() uses colon syntax. BedWars service docs usually show dot syntax; verify this in docs before syncing."
@@ -2830,9 +2969,12 @@ def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
 
     for event in used_events:
         if _casefold_lookup(events, event) is None:
-            add_warning(
-                f"Events.{event} is not in docs_cache. Treat this as likely fake until docs.easy.gg is refreshed."
-            )
+            if event in UNDOCUMENTED_CHAT_GUIDANCE:
+                add_warning(UNDOCUMENTED_CHAT_GUIDANCE[event])
+            else:
+                add_warning(
+                    f"Events.{event} is not in docs_cache. Treat this as likely fake until docs.easy.gg is refreshed."
+                )
 
     def check_object_method(object_type: str, method_name: str) -> None:
         base_type = _base_documented_type(object_type)
@@ -2974,6 +3116,48 @@ def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
             used_type_strings[type_name] = matching_strings
 
     used_item_strings = used_type_strings.get("ItemType", [])
+
+    if "ChatService" in used_services:
+        rich_tags = sorted(
+            {
+                tag.group(0)
+                for literal in string_literals
+                for tag in RICH_TEXT_TAG_RE.finditer(literal)
+            }
+        )
+        if rich_tags:
+            add_warning(
+                "ChatService rich-text rendering is not documented. Markup such as "
+                f"{', '.join(rich_tags[:5])} may appear literally; chat_capabilities reports no supported tags."
+            )
+
+    if re.search(
+        r"\bChatService\s*\.\s*sendMessage\s*\(\s*(?:event\s*\.\s*)?player\s*,",
+        code_for_global_scan,
+        re.IGNORECASE,
+    ):
+        add_warning(
+            "ChatService.sendMessage does not document a Player sender argument. Its signature is "
+            "sendMessage(message: string, color: Color3 | nil), so it cannot preserve native player/team formatting."
+        )
+
+    if re.search(r"\b[A-Za-z_][A-Za-z0-9_]*\s*\.\s*(?:teamColor|color)\b", code_for_global_scan):
+        team_property_accesses = re.findall(
+            r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*(teamColor|color)\b",
+            code_for_global_scan,
+        )
+        direct_team_result_access = re.search(
+            r"\bTeamService\s*\.\s*getTeam\s*\([^)]*\)\s*\.\s*(?:teamColor|color)\b",
+            code_for_global_scan,
+        )
+        if direct_team_result_access or any(
+            variable.casefold().endswith("team") or property_name == "teamColor"
+            for variable, property_name in team_property_accesses
+        ):
+            add_warning(
+                "Team.color and Team.teamColor are not documented Team properties. "
+                "The current Team object exposes only name, id, and getInGamePlayers()."
+            )
 
     for global_name in ROBLOX_GLOBALS_TO_WARN:
         if _casefold_lookup(services, global_name):
@@ -3385,6 +3569,25 @@ def runtime_capabilities() -> dict[str, Any]:
                     "flight physics",
                     "arbitrary entity velocity",
                 ],
+            },
+            "chat_formatting": {
+                "documented": "partial",
+                "apis": [
+                    "ChatService.sendMessage(message, color)",
+                    "Events.PlayerChatted(function(event) ... end)",
+                    "Team.name",
+                    "Team.id",
+                ],
+                "not_documented": [
+                    "ChatService.sendRichMessage(...)",
+                    "Events.BeforePlayerChatted",
+                    "event.cancelled for PlayerChatted",
+                    "send message as Player",
+                    "Team.color or Team.teamColor",
+                    "independently colored chat segments",
+                    "supported rich-text tags",
+                ],
+                "details_tool": "chat_capabilities",
             },
             "health": {
                 "documented": True,

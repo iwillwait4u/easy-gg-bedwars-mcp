@@ -14,6 +14,8 @@ SERVER_INSTRUCTIONS = (
     "Community reference exports may be audited with audit_reference_export, but they never override official "
     "docs.easy.gg API records. Use recommend_mechanic_apis and recommend_algorithm to turn community-inspired "
     "mechanics into original, docs-backed implementations. "
+    "Use chat_capabilities before implementing chat tags, rich text, command hiding, team-colored names, or "
+    "replacement messages. "
     "Use service keywords to resolve similar services: AnnouncementService is for "
     "announcement banners, ChatService is for public chat lines, and MessageService "
     "is for broadcast/info/error game messages. "
@@ -94,6 +96,12 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "category": "reference analysis",
         "description": "Return original algorithm steps, official API references, limits, and pitfalls for complex mechanics.",
         "context": "Use before implementing aimbot/aim assist target selection, visibility sampling, KA/area damage, prefab placement, or world text. It returns no community source code or copied data tables.",
+    },
+    "chat_capabilities": {
+        "name": "chat_capabilities",
+        "category": "reference analysis",
+        "description": "Report documented chat support, missing formatting features, and a proposed future API contract.",
+        "context": "Call before building chat tags, command suppression, rich text, team-colored player names, segmented messages, or send-as-player behavior.",
     },
     "resolve_creative_mechanic": {
         "name": "resolve_creative_mechanic",

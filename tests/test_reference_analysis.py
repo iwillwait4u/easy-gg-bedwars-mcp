@@ -58,6 +58,29 @@ class ReferenceAnalysisTests(unittest.TestCase):
         self.assertEqual(services[0]["name"], "DataStoreService")
         self.assertTrue(services[0]["officially_documented"])
 
+    def test_chat_capabilities_separate_documented_and_proposed_apis(self) -> None:
+        result = server.chat_capabilities()
+
+        self.assertTrue(result["documented"]["send_public_message"]["supported"])
+        self.assertEqual(
+            result["documented"]["send_public_message"]["color_scope"],
+            "whole_message",
+        )
+        self.assertFalse(
+            result["missing_from_official_cache"]["rich_message_api"]["supported"]
+        )
+        self.assertFalse(
+            result["missing_from_official_cache"]["cancellable_before_chat_event"]["supported"]
+        )
+        self.assertEqual(
+            result["proposed_future_contract"]["status"],
+            "proposal_only_not_callable",
+        )
+        self.assertEqual(
+            result["missing_from_official_cache"]["rich_text_tags"]["supported_tags"],
+            [],
+        )
+
     def test_combined_dataset_fallback_only_analyzes_confirmed_statuses(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

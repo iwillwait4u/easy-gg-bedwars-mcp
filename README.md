@@ -96,6 +96,8 @@ Use `recommend_mechanic_apis(topic="persistent player upgrades")` to map an obse
 
 Use `recommend_algorithm(topic="bounded target selection with wall checks")` for original design steps and pitfalls covering target selection, segment visibility, area damage, prefab placement, and world text. Community evidence can suggest behavior and test cases, but only the `docs.easy.gg` cache validates scripting APIs.
 
+Use `chat_capabilities()` before implementing chat tags, rich text, hidden commands, team-colored names, or replacement messages. It separates the documented `ChatService.sendMessage` and `PlayerChatted` surface from missing features and includes a proposal-only segmented-message/cancellable-event contract.
+
 Mechanic labels are not blocked. Use `resolve_creative_mechanic(prompt="host-only aimbot with wall checks")` to classify names such as aimbot, aim assist, KA, kill aura, fly, or speed as private Creative Host Panel mechanics and receive the correct tool sequence and documented capability limits.
 
 Run `validate_directory_project(directory="C:\\path\\to\\project")` before sync to validate every Lua file under `scripts/`.

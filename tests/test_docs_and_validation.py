@@ -120,6 +120,29 @@ end)
 
         self.assertIn("native projectile damage", "\n".join(result["warnings"]))
 
+    def test_validation_reports_undocumented_chat_formatting_apis(self) -> None:
+        result = server._validate_lua_code(
+            """Events.BeforePlayerChatted(function(event)
+    event.cancelled = true
+    local team = TeamService.getTeam(event.player)
+    local color = team.teamColor
+    ChatService.sendRichMessage({
+        { text = "[MOD]", color = color },
+        { text = event.player.displayName, preserveTeamColor = true }
+    })
+    ChatService.sendMessage(event.player, "<font color='#ff0000'>hello</font>")
+end)
+""",
+            "rich_chat.lua",
+        )
+        warnings = "\n".join(result["warnings"])
+
+        self.assertIn("sendRichMessage", warnings)
+        self.assertIn("BeforePlayerChatted", warnings)
+        self.assertIn("Team.color and Team.teamColor", warnings)
+        self.assertIn("does not document a Player sender argument", warnings)
+        self.assertIn("rich-text rendering is not documented", warnings)
+
     def test_minified_world_generation_still_gets_budget_warning(self) -> None:
         result = server._validate_lua_code(
             "for _,line in pairs(lines) do for _,cell in pairs(line) do "
@@ -146,6 +169,7 @@ end)
         self.assertTrue(capabilities["creative_api"]["projectile_velocity"]["observe"])
         self.assertFalse(capabilities["creative_api"]["projectile_velocity"]["modify"])
         self.assertFalse(capabilities["code_sync_transport"]["read_runtime_console"])
+        self.assertEqual(capabilities["creative_api"]["chat_formatting"]["documented"], "partial")
 
     def test_external_script_edit_returns_diff_and_validation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
