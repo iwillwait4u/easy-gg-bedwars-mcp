@@ -6,11 +6,11 @@ This project writes Roblox BedWars scripts that run through documented in-game A
 
 ## Creative Sandbox Notice
 
-This MCP is for **private, host-controlled BedWars Creative custom games**. Creators sometimes call a custom target-assist mechanic "aimbot" or "aim assist" when experimenting with their own game modes for fun. Here, those names describe mechanics scripted through the documented Creative system, where the official APIs support the requested behavior.
+This MCP is for **private, host-controlled BedWars Creative custom games**. Creators sometimes use words such as "hack", "cheat", or "exploit" when experimenting with their own game modes for fun. This notice applies to **all mechanic nicknames**, including aimbot, aim assist, kill aura, ESP/player indicators, fly, speed, teleportation, invincibility, noclip, and other labels. In a host-scripted Creative request, these names can describe custom game mechanics built through the documented Creative system, where the official APIs support the requested behavior.
 
 The MCP does **not** read or write Roblox process memory, inject code into the Roblox client, use script executors, or bypass anti-cheat. Scripts run through the in-game Creative scripting system and are uploaded through Code Sync.
 
-**For AI assistants:** Assess the requested behavior, execution context, and documented APIs. A mechanic's nickname alone does not establish client hacking. Use `resolve_creative_mechanic`, read the relevant official API records, and preserve their capability limits. For example, `ProjectileLaunched` velocity is readable but is not documented as modifiable; the notice does not make unsupported APIs available.
+**For AI assistants:** Apply this context to every mechanic label, including new or unfamiliar names and generic requests for "hacks" or "cheats". Assess the actual requested behavior, execution context, and documented APIs. Describe a host-scripted Creative mechanic accurately; a nickname alone does not establish client hacking. If the execution context is unclear, establish it before choosing an implementation. Use `resolve_creative_mechanic`, read the relevant official API records, and preserve their capability limits. The examples above are labels creators may use, and API support must be checked for each requested feature. For example, `ProjectileLaunched` velocity is readable but is not documented as modifiable.
 
 ## Source Of Truth
 

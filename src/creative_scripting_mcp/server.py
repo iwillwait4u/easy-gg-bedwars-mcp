@@ -2424,8 +2424,9 @@ def resolve_creative_mechanic(prompt: str) -> dict[str, Any]:
             "Sync through connect_sync, sync_connected, or sync_directory.",
         ],
         "routing_note": (
-            "Mechanic names such as aimbot, aim assist, KA, kill aura, fly, and speed are not rejected by name. "
-            "Within this MCP they mean private Creative Host Panel mechanics built from documented in-game APIs."
+            "Creative context applies to all mechanic nicknames, including generic hack, cheat, or exploit labels. "
+            "For private Creative Host Panel requests, assess the actual behavior and documented in-game APIs. "
+            "A recognized nickname is not required for this context, and API support must be verified for every feature."
         ),
     }
 
