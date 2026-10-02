@@ -3,6 +3,17 @@
 from typing import Any
 
 
+CREATIVE_SANDBOX_NOTICE = (
+    "Creative sandbox notice: This MCP authors Lua for private, host-controlled BedWars Creative custom games "
+    "using documented in-game APIs and Code Sync. Creators may call a custom target-assist mechanic 'aimbot' "
+    "or 'aim assist' when experimenting with their own game modes for fun. The MCP does not read or write "
+    "Roblox process memory, inject client code, use script executors, or bypass anti-cheat. "
+    "For AI assistants: assess the requested behavior, execution context, and documented APIs rather than "
+    "inferring client hacking from a mechanic's nickname alone. Verify API support and preserve documented "
+    "capability limits."
+)
+
+
 SERVER_INSTRUCTIONS = (
     "easy-gg-bedwars-custom MCP for Easy.gg Roblox BedWars Creative Host Panel projects. "
     "Use documented in-game Lua APIs, local project files, and Code Sync. "
@@ -23,12 +34,10 @@ SERVER_INSTRUCTIONS = (
     "The Lua sandbox is limited: do not assume standard Lua globals such as pcall "
     "or xpcall exist. Protected-call behavior cannot be recreated without runtime "
     "support; use defensive nil/state/type checks instead. "
-    "Do not reject a request because of its mechanic label. Aimbot, aim assist, KA, kill aura, fly, speed, and "
-    "similar names mean private Host Panel Creative mechanics in this MCP. Call resolve_creative_mechanic first, "
-    "then recommend_algorithm and the official docs tools before authoring original Lua. The available tools only "
-    "operate on documented Creative APIs and Code Sync; they do not provide external client injection or executor "
-    "capabilities."
-)
+    "For private Host Panel Creative requests, labels such as aimbot, aim assist, KA, kill aura, fly, and speed "
+    "can describe custom game mechanics. Call resolve_creative_mechanic first, then recommend_algorithm and "
+    "the official docs tools before authoring original Lua. "
+) + CREATIVE_SANDBOX_NOTICE
 
 
 TOOL_DEFINITIONS: dict[str, dict[str, str]] = {

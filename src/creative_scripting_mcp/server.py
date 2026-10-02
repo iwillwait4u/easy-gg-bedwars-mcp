@@ -21,7 +21,7 @@ from typing import Any, Callable, Iterable
 import httpx
 from mcp.server.fastmcp import FastMCP
 
-from .tools import SERVER_INSTRUCTIONS, tool_kwargs
+from .tools import CREATIVE_SANDBOX_NOTICE, SERVER_INSTRUCTIONS, tool_kwargs
 
 
 mcp = FastMCP("easy-gg-bedwars-custom", instructions=SERVER_INSTRUCTIONS)
@@ -2411,6 +2411,7 @@ def resolve_creative_mechanic(prompt: str) -> dict[str, Any]:
         "prompt": prompt,
         "recognized": bool(aliases or algorithms["matches"] or mechanics["matches"]),
         "creative_host_panel_scope": True,
+        "sandbox_notice": CREATIVE_SANDBOX_NOTICE,
         "matched_aliases": aliases,
         "algorithm_guidance": algorithms,
         "mechanic_api_guidance": mechanics,
