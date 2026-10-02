@@ -2,12 +2,29 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import json
 from pathlib import Path
+from unittest.mock import patch
 
 from creative_scripting_mcp import server
 
 
 class DocsAndValidationTests(unittest.TestCase):
+    def test_local_doc_category_override_keeps_missing_bundled_categories(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            local = root / "local"
+            bundle = root / "package" / "docs_cache"
+            local.mkdir()
+            bundle.mkdir(parents=True)
+            (local / "services.json").write_text(json.dumps({"LocalService": {}}), encoding="utf-8")
+            (bundle / "services.json").write_text(json.dumps({"BundledService": {}}), encoding="utf-8")
+            (bundle / "objects.json").write_text(json.dumps({"Entity": {}}), encoding="utf-8")
+            with patch.object(server, "DOCS_CACHE_DIR", local), patch.object(server, "PACKAGE_ROOT", bundle.parent):
+                docs = server._load_docs_cache()
+            self.assertEqual(docs["services"], {"LocalService": {}})
+            self.assertEqual(docs["objects"], {"Entity": {}})
+
     def test_full_object_and_type_readers(self) -> None:
         entity = server.read_object("entity")
         ability_type = server.read_type("AbilityType")
@@ -78,6 +95,30 @@ end
 
         self.assertFalse(result["valid"])
         self.assertIn("expected 'end'", "\n".join(result["syntax_check"]["errors"]))
+
+    def test_long_strings_and_comments_do_not_create_syntax_or_api_errors(self) -> None:
+        code = '''--[==[
+if FakeService.missing() then
+    end ) }
+]==]
+local message = [=[
+while workspace.loadstring() do
+    ] ) } end
+]=]
+ChatService.sendMessage(message)
+'''
+        result = server._validate_lua_code(code, "long_strings.lua")
+        self.assertTrue(result["valid"], result["syntax_check"])
+        self.assertNotIn("FakeService", result["used_services"])
+        self.assertNotIn("loadstring", "\n".join(result["warnings"]))
+
+    def test_masking_keeps_original_diagnostic_line_numbers(self) -> None:
+        code = 'local text = [[\nif end\nwhile do\n]]\nif true then\n'
+        stripped = server._code_without_lua_strings_or_comments(code)
+        self.assertEqual(len(stripped), len(code))
+        self.assertEqual(stripped.count("\n"), code.count("\n"))
+        errors = server._basic_lua_syntax_errors(code)
+        self.assertIn("near line 5", "\n".join(errors))
 
     def test_validation_warns_about_expensive_or_incompatible_algorithms(self) -> None:
         code = """local alignment = forward:Dot(toTarget)

@@ -1,0 +1,5 @@
+include server.py tools.py
+include docs_cache/fandom/README.md
+recursive-include maintenance *.py
+recursive-include tests *.py
+recursive-include scripts/examples *.lua

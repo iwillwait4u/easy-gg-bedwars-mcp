@@ -33,6 +33,17 @@ py -m pip install -e .
 
 The server uses the Python MCP SDK package `mcp`. Codex/Claude starts the MCP server from its config; do not keep `python server.py` running for normal use.
 
+Python 3.10 or newer is required. On macOS/Linux, use `python3 -m venv .venv`,
+`source .venv/bin/activate`, and `python -m pip install -e .`.
+
+Wheel installs include the five official API caches, so docs tools work without
+a source checkout. In a checkout, local files remain under the repository root;
+in an installed wheel, the working directory is the default project root.
+Set `CREATIVE_SCRIPTING_MCP_ROOT` to choose a different local project root.
+Local `docs_cache/*.json` files override the bundled records by category;
+missing categories fall back to the bundled cache. Fandom data stays local to
+the project root and is never bundled in the wheel.
+
 ## Project Layout
 
 ```text
@@ -128,6 +139,20 @@ Fandom content is community-authored and CC-BY-SA unless a page says otherwise. 
 
 ## BedWars Code Sync
 
+Preview a folder before uploading:
+
+```text
+preview_directory_sync(directory="C:\\path\\to\\your-project")
+```
+
+The preview needs no token and does not change files. It reports upload names,
+byte sizes, SHA-256 hashes, duplicate basenames, Lua validation, and generated
+helpers that normal sync would remove. It also shows whether an empty folder
+would clear the remote scripts. `validate=false` skips static validation for a
+quick file inventory; `validation_performed` distinguishes that result. The
+preview reflects local files at the time of the call and cannot inspect the
+remote editor.
+
 Use normal project folders so Roblox only receives the scripts you intend to sync:
 
 ```text
@@ -154,6 +179,18 @@ sync_connected()
 The token is sent to Easy.gg's Code Sync endpoint and kept only in MCP memory for the current running server process. It is not saved or returned in tool output.
 
 When `watch=true`, the MCP polls the connected folder for saved, deleted, or renamed `.lua` files. When the file set changes, it syncs the whole current folder, matching the VS Code extension's connected-session behavior.
+
+The watcher waits for a quiet period after repeated saves and retries failed
+uploads with backoff, capped at 30 seconds. Failed uploads retain `last_error`
+and do not advance `last_auto_sync_at` or the successfully synced file snapshot.
+Passing `watch=false` when connecting stops any existing watcher.
+
+Disconnect immediately forgets the token and invalidates pending session updates.
+An HTTP request already in flight may still complete, but its result cannot
+restore the disconnected session. `sync_status()` reports `watcher_stopping`
+while a stopped watcher finishes that request. Transport errors and echoed
+server responses redact the token; an accepted upload remains successful if
+the confirmation request times out.
 
 The MCP also reads the VS Code extension's `bwconfig.lua` format when no glob is provided:
 
@@ -284,6 +321,36 @@ python maintenance/refresh_docs_cache.py
 
 It does not automatically promote scraped content into the JSON cache. Review official docs before adding or changing APIs.
 
+## Development and Verification
+
+```sh
+python -m pip install -e . build
+python -m unittest discover -s tests -v
+python -m build
+```
+
+To verify the installed package, replace the editable installation with the
+wheel from `dist/`, then run `python tests/smoke_installed.py`. The smoke test
+launches the MCP server in a temporary directory, performs an MCP handshake,
+lists tools, and reads packaged InventoryService documentation. It requires no
+sync token and makes no Code Sync uploads.
+
+The GitHub Actions workflow runs the unit tests, builds the wheel from the
+source distribution, and checks the installed server on Windows and Linux
+with Python 3.10 and 3.13.
+
+Lua validation is a static check against cached docs, rather than a full Lua
+parser. It masks quoted strings, long-bracket strings, and comments before
+checking APIs and block structure, preserving source line numbers for errors.
+The BedWars runtime remains authoritative for execution and syntax support.
+
+Script creation and edits use atomic file replacement so a watcher cannot
+upload a half-written script. The edit tools accept ``replace `old` with `new` ``,
+`replace: old => new`, `append: code`, `prepend: code`, or a fenced Lua block.
+Unsupported instructions and missing replacement targets leave both the script
+and its backup unchanged. Successful changes preserve the original bytes in
+`.bak`; no-op edits report `changed=false` and preserve the previous backup.
+
 ## GitHub Release Checklist
 
 Before publishing:
@@ -305,7 +372,7 @@ git status
 git add README.md pyproject.toml .gitignore server.py tools.py src maintenance docs_cache scripts
 git commit -m "Initial release"
 git branch -M main
-git remote add origin https://github.com/RareFlames36/easy-gg-bedwars-mcp.git
+git remote add origin https://github.com/iwillwait4u/easy-gg-bedwars-mcp.git
 git push -u origin main
 ```
 

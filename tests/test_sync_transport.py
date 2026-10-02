@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import json
 from inspect import signature
 from pathlib import Path
 from unittest.mock import patch
+
+import httpx
 
 from creative_scripting_mcp import server
 
@@ -166,6 +169,78 @@ class SyncTransportTests(unittest.TestCase):
                     [first, second],
                     upload_root=root,
                 )
+
+    def test_transport_errors_never_return_token_urls(self) -> None:
+        error = httpx.ConnectError("Failed https://example.test/test-token/sync-files")
+        with patch.object(server.httpx, "post", side_effect=error), patch.object(server.time, "sleep"):
+            with self.assertRaises(server.BedWarsMcpError) as raised:
+                server._post_empty_sync("test-token")
+        self.assertNotIn("test-token", str(raised.exception))
+        self.assertIn("[redacted]", str(raised.exception))
+        self.assertTrue(raised.exception.__suppress_context__)
+
+    def test_response_echoes_are_redacted_recursively(self) -> None:
+        response = httpx.Response(403, json={"test-token": ["URL /test-token/sync-files"]})
+        with patch.object(server.httpx, "post", return_value=response), patch.object(server.time, "sleep"):
+            result = server._post_empty_sync("test-token")
+        self.assertFalse(result["ok"])
+        self.assertNotIn("test-token", json.dumps(result))
+
+    def test_confirmation_timeout_preserves_accepted_upload(self) -> None:
+        responses = [FakeResponse(), httpx.ReadTimeout("Timed out at /test-token/sync-files")]
+        with patch.object(server.httpx, "post", side_effect=responses), patch.object(server.time, "sleep"):
+            result = server._post_empty_sync("test-token")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["status_code"], 201)
+        self.assertEqual(result["attempt_status_codes"], [201, None])
+        self.assertIsNotNone(result["warning"])
+        self.assertNotIn("test-token", json.dumps(result))
+
+    def test_transient_connection_error_retries(self) -> None:
+        responses = [httpx.ConnectError("offline"), FakeResponse()]
+        with patch.object(server.httpx, "post", side_effect=responses), patch.object(server.time, "sleep"):
+            result = server._post_empty_sync("test-token")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["attempt_status_codes"], [None, 201])
+
+    def test_confirmation_uses_identical_content_even_when_file_changes(self) -> None:
+        contents = []
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            script = root / "game.lua"
+            script.write_bytes(b"-- initial\n")
+
+            def post(url, **kwargs):
+                contents.append(kwargs["files"][0][1][1].read())
+                script.write_bytes(b"-- changed during upload\n")
+                return FakeResponse()
+
+            with patch.object(server.httpx, "post", side_effect=post), patch.object(server.time, "sleep"):
+                server._post_sync_files("test-token", [script], upload_root=root)
+        self.assertEqual(contents, [b"-- initial\n", b"-- initial\n"])
+
+    def test_case_insensitive_duplicate_basenames_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            first = root / "one" / "Main.lua"
+            second = root / "two" / "main.lua"
+            for path in (first, second):
+                path.parent.mkdir()
+                path.write_text("-- example\n", encoding="utf-8")
+            with self.assertRaisesRegex(server.BedWarsMcpError, "duplicate files"):
+                server._post_sync_files("test-token", [first, second], upload_root=root)
+
+    def test_files_outside_upload_root_are_rejected_before_http(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            upload_root = root / "project"
+            upload_root.mkdir()
+            script = root / "outside.lua"
+            script.write_text("-- outside\n", encoding="utf-8")
+            with patch.object(server.httpx, "post") as post:
+                with self.assertRaisesRegex(server.BedWarsMcpError, "outside"):
+                    server._post_sync_files("test-token", [script], upload_root=upload_root)
+            post.assert_not_called()
 
 
 if __name__ == "__main__":

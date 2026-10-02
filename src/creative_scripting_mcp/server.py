@@ -1,11 +1,14 @@
 ﻿from __future__ import annotations
 
 import difflib
+import hashlib
 import json
 import os
 import re
 import shutil
+import stat
 import threading
+import tempfile
 import time
 from collections import Counter
 from contextlib import ExitStack
@@ -29,15 +32,21 @@ def bedwars_tool(function: Any) -> Any:
     return mcp.tool(**tool_kwargs(function.__name__))(function)
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
-PROJECT_ROOT = Path(os.environ.get("CREATIVE_SCRIPTING_MCP_ROOT", PACKAGE_ROOT.parent.parent)).resolve()
+CHECKOUT_ROOT = PACKAGE_ROOT.parent.parent
+DEFAULT_ROOT = CHECKOUT_ROOT if (CHECKOUT_ROOT / "pyproject.toml").is_file() else Path.cwd()
+PROJECT_ROOT = Path(os.environ.get("CREATIVE_SCRIPTING_MCP_ROOT", DEFAULT_ROOT)).resolve()
 DOCS_CACHE_DIR = PROJECT_ROOT / "docs_cache"
-FANDOM_CACHE_DIR = DOCS_CACHE_DIR / "fandom"
+if not DOCS_CACHE_DIR.is_dir():
+    DOCS_CACHE_DIR = PACKAGE_ROOT / "docs_cache"
+FANDOM_CACHE_DIR = PROJECT_ROOT / "docs_cache" / "fandom"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 PROJECTS_DIR = SCRIPTS_DIR / "projects"
 DEFAULT_PROJECT_NAME = "default"
 CODE_SYNC_BASE_URL = "https://rblx-bedwars-sync-service-o6h4tsr73a-uc.a.run.app"
 SYNC_SESSION: dict[str, Any] = {}
 SYNC_LOCK = threading.RLock()
+SYNC_UPLOAD_LOCK = threading.RLock()
+SYNC_GENERATION = 0
 SYNC_WATCHER_STOP: threading.Event | None = None
 SYNC_WATCHER_THREAD: threading.Thread | None = None
 GENERATED_MAIN_CODE = (
@@ -400,7 +409,9 @@ RICH_TEXT_TAG_RE = re.compile(
 FENCED_CODE_RE = re.compile(r"```(?:lua|luau|bwlua)?\s*(.*?)```", re.IGNORECASE | re.DOTALL)
 SYNC_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{6,128}$")
 LUA_STRING_OR_COMMENT_RE = re.compile(
-    r"--[^\n]*|'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"",
+    r"--\[(?P<comment_equals>=*)\[.*?\](?P=comment_equals)\]"
+    r"|--[^\n]*|\[(?P<string_equals>=*)\[.*?\](?P=string_equals)\]"
+    r"|'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"",
     re.DOTALL,
 )
 
@@ -459,7 +470,11 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 def _load_docs_cache() -> dict[str, dict[str, Any]]:
     return {
-        category: _read_json(DOCS_CACHE_DIR / file_name)
+        category: _read_json(
+            DOCS_CACHE_DIR / file_name
+            if (DOCS_CACHE_DIR / file_name).is_file()
+            else PACKAGE_ROOT / "docs_cache" / file_name
+        )
         for category, file_name in DOC_FILES.items()
     }
 
@@ -683,10 +698,39 @@ def _project_relative_script_path(project_name: str, file_name: str, *, sync: bo
     return str(Path("projects") / _safe_project_name(project_name) / section / requested).replace("\\", "/")
 
 
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Publish a complete UTF-8 file so readers never observe a partial write."""
+    _atomic_write_bytes(path, text.encode("utf-8"))
+
+
+def _atomic_write_bytes(path: Path, content: bytes) -> None:
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=path.parent,
+            prefix=f".{path.name}.", suffix=".tmp", delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if path.exists():
+            shutil.copymode(path, temporary)
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink(missing_ok=True)
+            except PermissionError:
+                # Windows refuses to delete a temporary file with copied read-only attributes.
+                temporary.chmod(temporary.stat().st_mode | stat.S_IWRITE)
+                temporary.unlink(missing_ok=True)
+
+
 def _write_script(file_name: str, code: str) -> Path:
     path = _safe_script_path(file_name)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(code.rstrip() + "\n", encoding="utf-8")
+    _atomic_write_text(path, code.rstrip() + "\n")
     return path
 
 
@@ -746,7 +790,10 @@ def _delete_script_path(path: Path, *, archive: bool) -> dict[str, Any]:
 
 
 def _code_without_lua_strings_or_comments(code: str) -> str:
-    return LUA_STRING_OR_COMMENT_RE.sub(" ", code)
+    # Keep offsets and line numbers intact for syntax diagnostics.
+    return LUA_STRING_OR_COMMENT_RE.sub(
+        lambda match: re.sub(r"[^\r\n]", " ", match.group(0)), code
+    )
 
 
 def _directory_sync_file_paths(directory: str, glob_pattern: str) -> tuple[Path, list[Path]]:
@@ -786,11 +833,18 @@ def _read_bwconfig_sync_glob(root: Path, default: str) -> str:
     if not config_path.exists():
         return default
 
-    text = config_path.read_text(encoding="utf-8")
-    match = re.search(r"\bsyncGlob\s*=\s*['\"]([^'\"]+)['\"]", text)
-    if not match:
-        return default
-    return match.group(1).strip() or default
+    text = config_path.read_text(encoding="utf-8-sig")
+    masked = _code_without_lua_strings_or_comments(text)
+    without_comments = LUA_STRING_OR_COMMENT_RE.sub(
+        lambda match: re.sub(r"[^\r\n]", " ", match.group(0))
+        if match.group(0).startswith("--") else match.group(0),
+        text,
+    )
+    for assignment in re.finditer(r"\bsyncGlob\s*=", masked):
+        value = re.match(r"\s*(['\"])([^'\"\r\n]+)\1", without_comments[assignment.end():])
+        if value:
+            return value.group(2).strip() or default
+    return default
 
 
 def _lua_quote(text: str) -> str:
@@ -801,18 +855,17 @@ def _lua_quote(text: str) -> str:
 
 
 def _write_sync_probe(root: Path, message: str = "") -> dict[str, Any]:
-    scripts_dir = root / "scripts"
-    scripts_dir.mkdir(parents=True, exist_ok=True)
+    _, probe_path = _directory_relative_script_path(str(root), "zz_sync_probe.lua")
+    probe_path.parent.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
     probe_message = message.strip() or f"{root.name} sync probe uploaded."
-    probe_path = scripts_dir / "zz_sync_probe.lua"
     code = (
         "-- Sync probe generated by easy-gg-bedwars-custom.\n"
         f"-- Updated at {timestamp}.\n"
         f"ChatService.sendMessage({_lua_quote(probe_message)})\n"
     )
-    probe_path.write_text(code, encoding="utf-8")
+    _atomic_write_text(probe_path, code)
     return {
         "path": str(probe_path),
         "file_name": "scripts/zz_sync_probe.lua",
@@ -821,15 +874,15 @@ def _write_sync_probe(root: Path, message: str = "") -> dict[str, Any]:
     }
 
 
-def _remove_generated_sync_helpers(root: Path) -> list[str]:
+def _generated_sync_helper_paths(root: Path) -> list[Path]:
     scripts_dir = root / "scripts"
     candidates = (
         (scripts_dir / "main.lua", lambda code: code == GENERATED_MAIN_CODE),
         (scripts_dir / "zz_sync_probe.lua", lambda code: code.startswith(GENERATED_PROBE_PREFIX)),
     )
-    removed: list[str] = []
+    generated: list[Path] = []
     for path, is_generated in candidates:
-        if not path.is_file():
+        if not path.is_file() or path.is_symlink() or root not in path.resolve().parents:
             continue
         try:
             code = path.read_text(encoding="utf-8")
@@ -837,9 +890,15 @@ def _remove_generated_sync_helpers(root: Path) -> list[str]:
             continue
         if not is_generated(code):
             continue
+        generated.append(path)
+    return generated
+
+
+def _remove_generated_sync_helpers(root: Path) -> list[str]:
+    paths = _generated_sync_helper_paths(root)
+    for path in paths:
         path.unlink()
-        removed.append(str(path.relative_to(root)).replace("\\", "/"))
-    return removed
+    return [path.relative_to(root).as_posix() for path in paths]
 
 
 def _auto_upload_root(root: Path, paths: list[Path]) -> Path:
@@ -876,12 +935,29 @@ def _sync_directory_with_token(
     return result
 
 
-def _store_sync_session(sync_token: str, result: dict[str, Any]) -> None:
-    if not result.get("ok"):
-        return
+def _store_sync_session(
+    sync_token: str,
+    result: dict[str, Any],
+    *,
+    expected_generation: int,
+    snapshot: tuple[tuple[str, int, int], ...],
+    replace: bool = True,
+) -> bool:
+    global SYNC_GENERATION
     with SYNC_LOCK:
+        if expected_generation != SYNC_GENERATION:
+            return False
+        if not result.get("ok"):
+            if not replace:
+                SYNC_SESSION["last_status_code"] = result.get("status_code")
+                SYNC_SESSION["last_error"] = result.get("warning") or "Code Sync upload failed."
+            return False
+        if replace:
+            SYNC_GENERATION += 1
+            if SYNC_WATCHER_STOP:
+                SYNC_WATCHER_STOP.set()
         watcher_running = bool(SYNC_SESSION.get("watcher_running"))
-        last_auto_sync_at = SYNC_SESSION.get("last_auto_sync_at")
+        last_auto_sync_at = None if replace else SYNC_SESSION.get("last_auto_sync_at")
         SYNC_SESSION.clear()
         SYNC_SESSION.update(
             {
@@ -897,8 +973,50 @@ def _store_sync_session(sync_token: str, result: dict[str, Any]) -> None:
                 "watcher_running": watcher_running,
                 "last_auto_sync_at": last_auto_sync_at,
                 "token_stored_in_memory_only": True,
+                "last_snapshot": snapshot,
             }
         )
+        return True
+
+
+def _connect_directory_session(
+    sync_token: str,
+    directory: str,
+    glob_pattern: str,
+    *,
+    allow_empty: bool,
+    watch: bool,
+) -> dict[str, Any]:
+    sync_token = (sync_token or "").strip()
+    with SYNC_LOCK:
+        generation = SYNC_GENERATION
+    with SYNC_UPLOAD_LOCK:
+        with SYNC_LOCK:
+            if generation != SYNC_GENERATION:
+                raise BedWarsMcpError("Sync connection changed. Retry the requested connection.")
+        snapshot = _sync_file_snapshot(directory, glob_pattern)
+        result = _sync_directory_with_token(sync_token, directory, glob_pattern, allow_empty=allow_empty)
+        stored = _store_sync_session(
+            sync_token, result, expected_generation=generation, snapshot=snapshot
+        )
+        with SYNC_LOCK:
+            # Disconnect can invalidate an upload while the HTTP request is in flight.
+            still_connected = stored and SYNC_SESSION.get("sync_token") == sync_token
+            watcher_started = _start_sync_watcher() if still_connected and watch else False
+        if still_connected and not watch:
+            _stop_sync_watcher()
+        with SYNC_LOCK:
+            still_connected = (
+                stored and SYNC_GENERATION == generation + 1
+                and SYNC_SESSION.get("sync_token") == sync_token
+            )
+            result.update(
+                connected=bool(still_connected),
+                watcher_running=bool(SYNC_WATCHER_THREAD and SYNC_WATCHER_THREAD.is_alive()),
+                watcher_started=watcher_started,
+                token_stored_in_memory_only=bool(still_connected),
+            )
+        return result
 
 
 def _sync_file_snapshot(directory: str, glob_pattern: str) -> tuple[tuple[str, int, int], ...]:
@@ -916,94 +1034,140 @@ def _sync_file_snapshot(directory: str, glob_pattern: str) -> tuple[tuple[str, i
     return tuple(sorted(snapshot))
 
 
-def _sync_connected_internal() -> dict[str, Any]:
-    with SYNC_LOCK:
-        token = str(SYNC_SESSION.get("sync_token") or "")
-        directory = str(SYNC_SESSION.get("directory") or "")
-        glob_pattern = str(SYNC_SESSION.get("glob_pattern") or "scripts/**/*.lua")
-
-    if not token or not directory:
-        raise BedWarsMcpError("No active sync connection. Call connect_sync first.")
-
-    result = _sync_directory_with_token(token, directory, glob_pattern, allow_empty=True)
-    _store_sync_session(token, result)
-    return result
-
-
-def _sync_watcher_loop(poll_seconds: float, debounce_seconds: float) -> None:
-    last_snapshot: tuple[tuple[str, int, int], ...] | None = None
-    while True:
-        stop_event = SYNC_WATCHER_STOP
-        if stop_event is None or stop_event.wait(poll_seconds):
-            break
-
+def _sync_connected_internal(
+    *, expected_generation: int | None = None, stop_event: threading.Event | None = None
+) -> dict[str, Any]:
+    with SYNC_UPLOAD_LOCK:
         with SYNC_LOCK:
-            connected = bool(SYNC_SESSION.get("connected"))
+            if stop_event and stop_event.is_set():
+                raise BedWarsMcpError("Sync watcher was stopped; the queued upload was cancelled.")
+            generation = SYNC_GENERATION
+            if expected_generation is not None and expected_generation != generation:
+                raise BedWarsMcpError("Sync connection changed; the previous upload was cancelled.")
+            token = str(SYNC_SESSION.get("sync_token") or "")
             directory = str(SYNC_SESSION.get("directory") or "")
             glob_pattern = str(SYNC_SESSION.get("glob_pattern") or "scripts/**/*.lua")
 
-        if not connected or not directory:
-            continue
-
+        if not token or not directory:
+            raise BedWarsMcpError("No active sync connection. Call connect_sync first.")
         try:
             snapshot = _sync_file_snapshot(directory, glob_pattern)
-        except Exception as exc:  # pragma: no cover - defensive runtime state.
-            with SYNC_LOCK:
-                SYNC_SESSION["last_error"] = str(exc)
-            continue
+            result = _sync_directory_with_token(token, directory, glob_pattern, allow_empty=True)
+        except Exception as exc:
+            _set_sync_error(generation, str(exc))
+            raise
+        _store_sync_session(
+            token, result, expected_generation=generation, snapshot=snapshot, replace=False
+        )
+        with SYNC_LOCK:
+            result["connected"] = generation == SYNC_GENERATION and bool(SYNC_SESSION.get("connected"))
+        return result
 
-        if last_snapshot is None:
-            last_snapshot = snapshot
-            continue
-        if snapshot == last_snapshot:
-            continue
 
-        if stop_event.wait(debounce_seconds):
-            break
+def _set_sync_error(generation: int, error: str) -> None:
+    with SYNC_LOCK:
+        if generation == SYNC_GENERATION:
+            token = str(SYNC_SESSION.get("sync_token") or "")
+            SYNC_SESSION["last_error"] = error.replace(token, "[redacted]") if token else error
 
-        try:
-            stable_snapshot = _sync_file_snapshot(directory, glob_pattern)
-            result = _sync_connected_internal()
+
+def _sync_watcher_loop(
+    stop_event: threading.Event,
+    generation: int,
+    poll_seconds: float,
+    debounce_seconds: float,
+) -> None:
+    pending_snapshot = None
+    changed_at = 0.0
+    retry_at = 0.0
+    failures = 0
+    try:
+        while not stop_event.wait(poll_seconds):
             with SYNC_LOCK:
-                SYNC_SESSION["last_auto_sync_at"] = datetime.now(timezone.utc).isoformat()
-                SYNC_SESSION["last_error"] = None
-            last_snapshot = stable_snapshot
-        except Exception as exc:  # pragma: no cover - defensive runtime state.
-            with SYNC_LOCK:
-                SYNC_SESSION["last_error"] = str(exc)
+                if generation != SYNC_GENERATION or not SYNC_SESSION.get("connected"):
+                    break
+                directory = str(SYNC_SESSION["directory"])
+                glob_pattern = str(SYNC_SESSION["glob_pattern"])
+                last_snapshot = SYNC_SESSION.get("last_snapshot")
+            try:
+                snapshot = _sync_file_snapshot(directory, glob_pattern)
+                now = time.monotonic()
+                if snapshot == last_snapshot:
+                    pending_snapshot = None
+                    failures = 0
+                    retry_at = 0.0
+                    continue
+                if snapshot != pending_snapshot:
+                    pending_snapshot = snapshot
+                    changed_at = now
+                    failures = 0
+                    retry_at = 0.0
+                if now - changed_at < debounce_seconds or now < retry_at:
+                    continue
+                if stop_event.is_set():
+                    break
+                result = _sync_connected_internal(expected_generation=generation, stop_event=stop_event)
+                if not result.get("ok"):
+                    raise BedWarsMcpError(str(result.get("warning") or "Code Sync upload failed."))
+                with SYNC_LOCK:
+                    if generation == SYNC_GENERATION and not stop_event.is_set():
+                        SYNC_SESSION["last_auto_sync_at"] = datetime.now(timezone.utc).isoformat()
+                failures = 0
+                retry_at = 0.0
+            except Exception as exc:  # Keep watching after transient I/O or HTTP failures.
+                if stop_event.is_set():
+                    break
+                _set_sync_error(generation, str(exc))
+                failures = min(failures + 1, 6)
+                retry_at = time.monotonic() + min(30.0, poll_seconds * (2 ** failures))
+    finally:
+        with SYNC_LOCK:
+            if SYNC_WATCHER_THREAD is threading.current_thread():
+                SYNC_SESSION["watcher_running"] = False
 
 
 def _start_sync_watcher(poll_seconds: float = 1.0, debounce_seconds: float = 0.4) -> bool:
     global SYNC_WATCHER_STOP, SYNC_WATCHER_THREAD
-    if SYNC_WATCHER_THREAD and SYNC_WATCHER_THREAD.is_alive():
-        with SYNC_LOCK:
-            SYNC_SESSION["watcher_running"] = True
-        return False
-
-    SYNC_WATCHER_STOP = threading.Event()
-    SYNC_WATCHER_THREAD = threading.Thread(
-        target=_sync_watcher_loop,
-        args=(poll_seconds, debounce_seconds),
-        daemon=True,
-        name="bedwars-sync-watch",
-    )
-    SYNC_WATCHER_THREAD.start()
     with SYNC_LOCK:
+        if (
+            SYNC_WATCHER_THREAD and SYNC_WATCHER_THREAD.is_alive()
+            and SYNC_WATCHER_STOP and not SYNC_WATCHER_STOP.is_set()
+        ):
+            SYNC_SESSION["watcher_running"] = True
+            return False
+        if "last_snapshot" not in SYNC_SESSION:
+            SYNC_SESSION["last_snapshot"] = _sync_file_snapshot(
+                str(SYNC_SESSION["directory"]), str(SYNC_SESSION["glob_pattern"])
+            )
+        SYNC_WATCHER_STOP = threading.Event()
+        SYNC_WATCHER_THREAD = threading.Thread(
+            target=_sync_watcher_loop,
+            args=(SYNC_WATCHER_STOP, SYNC_GENERATION, poll_seconds, debounce_seconds),
+            daemon=True,
+            name="bedwars-sync-watch",
+        )
         SYNC_SESSION["watcher_running"] = True
+        SYNC_WATCHER_THREAD.start()
     return True
 
 
-def _stop_sync_watcher() -> bool:
+def _stop_sync_watcher(*, expected_generation: int | None = None) -> bool:
     global SYNC_WATCHER_STOP, SYNC_WATCHER_THREAD
-    was_running = bool(SYNC_WATCHER_THREAD and SYNC_WATCHER_THREAD.is_alive())
-    if SYNC_WATCHER_STOP:
-        SYNC_WATCHER_STOP.set()
-    if SYNC_WATCHER_THREAD and SYNC_WATCHER_THREAD.is_alive():
-        SYNC_WATCHER_THREAD.join(timeout=2.0)
-    SYNC_WATCHER_STOP = None
-    SYNC_WATCHER_THREAD = None
     with SYNC_LOCK:
-        SYNC_SESSION["watcher_running"] = False
+        if expected_generation is not None and expected_generation != SYNC_GENERATION:
+            return False
+        thread = SYNC_WATCHER_THREAD
+        was_running = bool(thread and thread.is_alive())
+        if SYNC_WATCHER_STOP:
+            SYNC_WATCHER_STOP.set()
+    if thread and thread.is_alive() and thread is not threading.current_thread():
+        thread.join(timeout=2.0)
+    with SYNC_LOCK:
+        if SYNC_WATCHER_THREAD is thread:
+            if not thread or not thread.is_alive():
+                SYNC_WATCHER_STOP = None
+                SYNC_WATCHER_THREAD = None
+            SYNC_SESSION["watcher_running"] = bool(thread and thread.is_alive())
     return was_running
 
 
@@ -1068,6 +1232,19 @@ def _directory_lua_file_infos(root: Path, base: Path) -> list[dict[str, Any]]:
     return files
 
 
+def _redact_sync_response(value: Any, token: str) -> Any:
+    if isinstance(value, str):
+        return value.replace(token, "[redacted]")
+    if isinstance(value, list):
+        return [_redact_sync_response(item, token) for item in value]
+    if isinstance(value, dict):
+        return {
+            str(key).replace(token, "[redacted]"): _redact_sync_response(item, token)
+            for key, item in value.items()
+        }
+    return value
+
+
 def _post_sync_multipart(
     sync_token: str,
     *,
@@ -1090,8 +1267,8 @@ def _post_sync_multipart(
     }
     attempt_results: list[dict[str, Any]] = []
 
-    try:
-        for attempt_number in range(1, attempts + 1):
+    for attempt_number in range(1, attempts + 1):
+        try:
             with ExitStack() as stack:
                 files = build_files(stack)
                 response = httpx.post(url, files=files, headers=request_headers, timeout=30.0)
@@ -1105,14 +1282,26 @@ def _post_sync_multipart(
                 {
                     "attempt": attempt_number,
                     "status_code": response.status_code,
-                    "response": response_value,
+                    "response": _redact_sync_response(response_value, token),
                     "ok": 200 <= response.status_code < 300,
                 }
             )
-            if attempt_number < attempts:
-                time.sleep(0.35)
-    except httpx.RequestError as exc:
-        raise BedWarsMcpError(f"Code Sync request failed before BedWars responded: {exc}") from exc
+        except httpx.RequestError as exc:
+            attempt_results.append(
+                {
+                    "attempt": attempt_number,
+                    "status_code": None,
+                    "response": None,
+                    "ok": False,
+                    "error": _redact_sync_response(str(exc), token),
+                }
+            )
+        if attempt_number < attempts:
+            time.sleep(0.35)
+
+    if all(attempt["status_code"] is None for attempt in attempt_results):
+        error = attempt_results[-1]["error"]
+        raise BedWarsMcpError(f"Code Sync request failed before BedWars responded: {error}") from None
 
     successful_attempts = [attempt for attempt in attempt_results if attempt["ok"]]
     last_attempt = attempt_results[-1]
@@ -1125,6 +1314,7 @@ def _post_sync_multipart(
         "file_count": len(uploaded),
         "delivery_attempts": len(attempt_results),
         "attempt_status_codes": [attempt["status_code"] for attempt in attempt_results],
+        "attempt_errors": [attempt.get("error") for attempt in attempt_results],
         "server_response": last_success["response"],
         "extension_compatible_transport": True,
         "token_stored": False,
@@ -1133,7 +1323,7 @@ def _post_sync_multipart(
             None
             if ok and len(successful_attempts) == len(attempt_results)
             else (
-                "The initial upload was accepted, but a confirmation attempt failed."
+                "An upload was accepted, but another delivery attempt failed."
                 if ok
                 else "Sync failed. Generate a fresh token in the BedWars script editor Sync tab and try again."
             )
@@ -1155,24 +1345,32 @@ def _post_sync_files(
         )
 
     uploaded = [path.name for path in paths]
-    duplicate_names = sorted({name for name in uploaded if uploaded.count(name) > 1})
+    duplicate_names = _duplicate_sync_names(paths)
     if duplicate_names:
         raise BedWarsMcpError(
             "Code Sync uses script basenames like the official VS Code extension. "
             f"Rename duplicate files before syncing: {', '.join(duplicate_names)}"
         )
 
+    root = upload_root.resolve()
+    payloads: list[tuple[str, bytes]] = []
+    for path in paths:
+        resolved = path.resolve()
+        if root not in resolved.parents:
+            raise BedWarsMcpError("A sync file resolved outside the selected upload root.")
+        payloads.append((path.name, resolved.read_bytes()))
+
     def build_files(stack: ExitStack) -> list[tuple[str, tuple[str, Any, str]]]:
         return [
             (
                 "files",
                 (
-                    path.name,
-                    stack.enter_context(path.open("rb")),
+                    name,
+                    stack.enter_context(BytesIO(content)),
                     "text/x-lua",
                 ),
             )
-            for path in paths
+            for name, content in payloads
         ]
 
     result = _post_sync_multipart(
@@ -1183,6 +1381,11 @@ def _post_sync_files(
     )
     result["delete_all"] = False
     return result
+
+
+def _duplicate_sync_names(paths: list[Path]) -> list[str]:
+    name_counts = Counter(path.name.casefold() for path in paths)
+    return sorted({path.name for path in paths if name_counts[path.name.casefold()] > 1})
 
 
 def _post_empty_sync(sync_token: str, *, delivery_attempts: int = 2) -> dict[str, Any]:
@@ -1209,6 +1412,8 @@ def _post_empty_sync(sync_token: str, *, delivery_attempts: int = 2) -> dict[str
     result["remote_note"] = (
         "BedWars received an in-memory zero-byte .lua file. Its empty script basename clears the remote script set "
         "without creating a local or visible placeholder."
+        if result["ok"]
+        else "Empty sync was not accepted. The remote script set may still be present."
     )
     return result
 
@@ -2305,10 +2510,10 @@ def create_project(project_name: str = DEFAULT_PROJECT_NAME, prompt: str = "") -
 
     main_script = sync_dir / "main.lua"
     if not main_script.exists():
-        main_script.write_text(
+        _atomic_write_text(
+            main_script,
             "-- Main script synced to BedWars Creative.\n"
             "ChatService.sendMessage(\"BedWars Creative project loaded.\")\n",
-            encoding="utf-8",
         )
 
     manifest = {
@@ -2430,7 +2635,7 @@ def prepare_directory_project(
     wrote_main = overwrite_main or not main_script.exists()
     if wrote_main:
         code = (main_code.rstrip() if main_code.strip() else GENERATED_MAIN_CODE.rstrip()) + "\n"
-        main_script.write_text(code, encoding="utf-8")
+        _atomic_write_text(main_script, code)
 
     manifest = {
         "sync_dir": "scripts",
@@ -2539,7 +2744,7 @@ def create_directory_script(
     """Create or replace a Lua script in an outside directory project's scripts/ or drafts/ folder."""
     root, path = _directory_relative_script_path(directory, file_name, sync=sync)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(code.rstrip() + "\n", encoding="utf-8")
+    _atomic_write_text(path, code.rstrip() + "\n")
     return {
         "directory": str(root),
         "file_name": str(path.relative_to(root)).replace("\\", "/"),
@@ -2596,6 +2801,67 @@ def delete_directory_script(
 
 
 @bedwars_tool
+def preview_directory_sync(
+    directory: str,
+    glob_pattern: str = "",
+    allow_empty: bool = False,
+    validate: bool = True,
+) -> dict[str, Any]:
+    """Preview normal directory sync without modifying files, uploading, or needing a token."""
+    root = _safe_directory_project_path(directory)
+    selected_glob = glob_pattern.strip() or _read_bwconfig_sync_glob(root, "scripts/**/*.lua")
+    root, paths = _directory_sync_file_paths(str(root), selected_glob)
+    helpers = _generated_sync_helper_paths(root)
+    helper_targets = {path.resolve() for path in helpers}
+    paths = [path for path in paths if path not in helper_targets]
+    effective_allow_empty = allow_empty or bool(helpers and not paths)
+    duplicates = _duplicate_sync_names(paths)
+    errors = []
+    if duplicates:
+        errors.append(f"Rename duplicate upload basenames: {', '.join(duplicates)}")
+    if not paths and not effective_allow_empty:
+        errors.append("No Lua files match. Use allow_empty=true only for an intentional delete-all sync.")
+    docs = _load_docs_cache() if validate else None
+    files = []
+    validation_errors = 0
+    for path in paths:
+        content = path.read_bytes()
+        relative_name = path.relative_to(root).as_posix()
+        record: dict[str, Any] = {
+            "file_name": relative_name,
+            "upload_name": path.name,
+            "bytes": len(content),
+            "sha256": hashlib.sha256(content).hexdigest(),
+        }
+        if validate:
+            try:
+                checked = _validate_lua_code(content.decode("utf-8-sig"), relative_name, docs=docs)
+                record["validation"] = {key: checked[key] for key in ("valid", "errors", "warnings")}
+            except UnicodeError:
+                record["validation"] = {"valid": False, "errors": ["Script is not valid UTF-8."], "warnings": []}
+            validation_errors += len(record["validation"]["errors"])
+        files.append(record)
+    return {
+        "directory": str(root),
+        "glob_pattern": selected_glob,
+        "upload_root": str(_auto_upload_root(root, paths)),
+        "file_count": len(files),
+        "total_bytes": sum(record["bytes"] for record in files),
+        "files": files,
+        "duplicate_names": duplicates,
+        "errors": errors,
+        "transport_ready": not errors,
+        "ready_to_sync": not errors and validation_errors == 0,
+        "validation_performed": validate,
+        "validation_error_count": validation_errors,
+        "delete_all": not paths and effective_allow_empty,
+        "would_remove_generated_helpers": [path.relative_to(root).as_posix() for path in helpers],
+        "uploaded": False,
+        "note": "Preview of current local files only. Files can change before sync; remote editor state is unavailable.",
+    }
+
+
+@bedwars_tool
 def connect_sync(
     sync_token: str,
     directory: str = "",
@@ -2619,27 +2885,17 @@ def connect_sync(
         _, remaining_paths = _directory_sync_file_paths(str(root_path), selected_glob)
         effective_allow_empty = not remaining_paths
     probe_result = _write_sync_probe(root_path, probe_message) if probe and not allow_empty else None
-    result = _sync_directory_with_token(
+    result = _connect_directory_session(
         sync_token,
         str(root_path),
         selected_glob,
         allow_empty=effective_allow_empty,
+        watch=watch,
     )
-    _store_sync_session(sync_token, result)
-    watcher_started = _start_sync_watcher() if watch and result.get("ok") else False
     return {
-        "connected": bool(result.get("ok")),
-        "watcher_running": bool(SYNC_SESSION.get("watcher_running")),
-        "watcher_started": watcher_started,
-        "directory": result.get("directory"),
-        "glob_pattern": result.get("glob_pattern"),
-        "upload_root": result.get("upload_root"),
-        "status_code": result.get("status_code"),
-        "uploaded_files": result.get("uploaded_files"),
-        "file_count": result.get("file_count"),
+        **result,
         "probe": probe_result,
         "removed_generated_helpers": removed_helpers,
-        "token_stored_in_memory_only": True,
     }
 
 
@@ -2656,6 +2912,11 @@ def sync_connected() -> dict[str, Any]:
 @bedwars_tool
 def sync_status() -> dict[str, Any]:
     """Return the active BedWars Code Sync connection status without exposing the token."""
+    with SYNC_LOCK:
+        return _sync_status_locked()
+
+
+def _sync_status_locked() -> dict[str, Any]:
     return {
         "connected": bool(SYNC_SESSION.get("connected")),
         "directory": SYNC_SESSION.get("directory"),
@@ -2667,6 +2928,10 @@ def sync_status() -> dict[str, Any]:
         "last_auto_sync_at": SYNC_SESSION.get("last_auto_sync_at"),
         "last_error": SYNC_SESSION.get("last_error"),
         "watcher_running": bool(SYNC_WATCHER_THREAD and SYNC_WATCHER_THREAD.is_alive()),
+        "watcher_stopping": bool(
+            SYNC_WATCHER_STOP and SYNC_WATCHER_STOP.is_set()
+            and SYNC_WATCHER_THREAD and SYNC_WATCHER_THREAD.is_alive()
+        ),
         "token_stored_in_memory_only": bool(SYNC_SESSION.get("sync_token")),
     }
 
@@ -2674,18 +2939,25 @@ def sync_status() -> dict[str, Any]:
 @bedwars_tool
 def disconnect_sync() -> dict[str, Any]:
     """Forget the active in-memory BedWars Code Sync token."""
-    was_connected = bool(SYNC_SESSION.get("connected"))
-    watcher_was_running = _stop_sync_watcher()
-    SYNC_SESSION.clear()
+    global SYNC_GENERATION
+    with SYNC_LOCK:
+        was_connected = bool(SYNC_SESSION.get("connected"))
+        SYNC_GENERATION += 1
+        generation = SYNC_GENERATION
+        SYNC_SESSION.clear()
+        if SYNC_WATCHER_STOP:
+            SYNC_WATCHER_STOP.set()
+    watcher_was_running = _stop_sync_watcher(expected_generation=generation)
     return {"disconnected": True, "was_connected": was_connected, "watcher_was_running": watcher_was_running}
 
 
 @bedwars_tool
 def start_sync_watch() -> dict[str, Any]:
     """Start auto-sync polling for the active BedWars Code Sync connection."""
-    if not SYNC_SESSION.get("sync_token") or not SYNC_SESSION.get("directory"):
-        raise BedWarsMcpError("No active sync connection. Call connect_sync first.")
-    started = _start_sync_watcher()
+    with SYNC_LOCK:
+        if not SYNC_SESSION.get("sync_token") or not SYNC_SESSION.get("directory"):
+            raise BedWarsMcpError("No active sync connection. Call connect_sync first.")
+        started = _start_sync_watcher()
     return {"watcher_running": True, "watcher_started": started}
 
 
@@ -2693,7 +2965,12 @@ def start_sync_watch() -> dict[str, Any]:
 def stop_sync_watch() -> dict[str, Any]:
     """Stop auto-sync polling for the active BedWars Code Sync connection."""
     stopped = _stop_sync_watcher()
-    return {"watcher_running": False, "watcher_was_running": stopped}
+    status = sync_status()
+    return {
+        "watcher_running": status["watcher_running"],
+        "watcher_stopping": status["watcher_stopping"],
+        "watcher_was_running": stopped,
+    }
 
 
 @bedwars_tool
@@ -2715,20 +2992,15 @@ def sync_directory(
         _, remaining_paths = _directory_sync_file_paths(str(root), selected_glob)
         effective_allow_empty = not remaining_paths
     probe_result = _write_sync_probe(root, probe_message) if probe and not allow_empty else None
-    result = _sync_directory_with_token(
+    result = _connect_directory_session(
         sync_token,
         str(root),
         selected_glob,
         allow_empty=effective_allow_empty,
+        watch=watch,
     )
-    _store_sync_session(sync_token, result)
-    watcher_started = _start_sync_watcher() if watch and result.get("ok") else False
     result["probe"] = probe_result
     result["removed_generated_helpers"] = removed_helpers
-    result["connected"] = bool(result.get("ok"))
-    result["watcher_running"] = bool(SYNC_SESSION.get("watcher_running"))
-    result["watcher_started"] = watcher_started
-    result["token_stored_in_memory_only"] = True
     return result
 
 
@@ -2750,18 +3022,14 @@ def force_sync_directory(
     selected_glob = glob_pattern.strip() or _read_bwconfig_sync_glob(root, "scripts/**/*.lua")
 
     probe_result = _write_sync_probe(root, probe_message) if probe else None
-    result = _sync_directory_with_token(sync_token, str(root), selected_glob, allow_empty=False)
-    _store_sync_session(sync_token, result)
-    watcher_started = _start_sync_watcher() if watch and result.get("ok") else False
+    result = _connect_directory_session(
+        sync_token, str(root), selected_glob, allow_empty=False, watch=watch
+    )
 
     return {
-        "connected": bool(result.get("ok")),
-        "watcher_running": bool(SYNC_SESSION.get("watcher_running")),
-        "watcher_started": watcher_started,
         "prepared": prepared,
         "probe": probe_result,
         **result,
-        "token_stored_in_memory_only": True,
     }
 
 
@@ -2771,10 +3039,10 @@ def _edit_lua_path(path: Path, instructions: str, *, relative_root: Path) -> dic
 
     original = path.read_text(encoding="utf-8")
     backup_path = path.with_name(path.name + ".bak")
-    shutil.copy2(path, backup_path)
+    instructions = instructions.strip()
 
     updated = original
-    mode = "todo_note"
+    mode = "replace"
 
     fenced = FENCED_CODE_RE.search(instructions)
     if fenced:
@@ -2794,15 +3062,19 @@ def _edit_lua_path(path: Path, instructions: str, *, relative_root: Path) -> dic
         if replace_match:
             old = replace_match.group("old")
             new = replace_match.group("new")
+            if not old:
+                raise BedWarsMcpError("Replacement text must not be empty.")
             if old not in updated:
-                raise BedWarsMcpError("Replacement text was not found. Backup was still created.")
+                raise BedWarsMcpError("Replacement text was not found. The script and backup were left unchanged.")
             updated = updated.replace(old, new)
             mode = "replace"
         elif arrow_match:
             old = arrow_match.group("old").strip()
             new = arrow_match.group("new").strip()
+            if not old:
+                raise BedWarsMcpError("Replacement text must not be empty.")
             if old not in updated:
-                raise BedWarsMcpError("Replacement text was not found. Backup was still created.")
+                raise BedWarsMcpError("Replacement text was not found. The script and backup were left unchanged.")
             updated = updated.replace(old, new)
             mode = "replace"
         elif instructions.casefold().startswith("append:"):
@@ -2812,17 +3084,22 @@ def _edit_lua_path(path: Path, instructions: str, *, relative_root: Path) -> dic
             updated = instructions.split(":", 1)[1].strip() + "\n" + original.lstrip()
             mode = "prepend"
         else:
-            note = "\n-- TODO from edit_script:\n"
-            note += "\n".join(f"-- {line}" for line in instructions.strip().splitlines())
-            updated = original.rstrip() + note + "\n"
+            raise BedWarsMcpError(
+                "Unsupported edit instructions. Use replace `old` with `new`, replace: old => new, "
+                "append: code, prepend: code, or a fenced Lua code block. No files were changed."
+            )
 
     final_code = updated.rstrip() + "\n"
-    path.write_text(final_code, encoding="utf-8")
+    changed = final_code != original
+    if changed:
+        _atomic_write_bytes(backup_path, path.read_bytes())
+        _atomic_write_text(path, final_code)
     relative_name = str(path.relative_to(relative_root)).replace("\\", "/")
     relative_backup = str(backup_path.relative_to(relative_root)).replace("\\", "/")
     return {
         "file_name": relative_name,
-        "backup": relative_backup,
+        "backup": relative_backup if changed else None,
+        "changed": changed,
         "edit_mode": mode,
         "diff": "".join(
             difflib.unified_diff(
@@ -2898,9 +3175,12 @@ def _basic_lua_syntax_errors(code: str) -> list[str]:
     return errors
 
 
-def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
+def _validate_lua_code(
+    code: str, file_name: str, *, docs: dict[str, dict[str, Any]] | None = None
+) -> dict[str, Any]:
     code_for_global_scan = _code_without_lua_strings_or_comments(code)
-    docs = _load_docs_cache()
+    if docs is None:
+        docs = _load_docs_cache()
     services = docs["services"]
     events = docs["events"]
     objects = docs["objects"]
@@ -2914,7 +3194,7 @@ def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
             warnings.append(message)
 
     for pattern in LUA_DANGEROUS_PATTERNS:
-        if pattern.casefold() in code.casefold():
+        if pattern.casefold() in code_for_global_scan.casefold():
             errors.append(
                 f"Unsupported external-runtime Lua pattern found: {pattern}. "
                 "It is not part of the documented Creative Host Panel API."
@@ -2927,14 +3207,14 @@ def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
                 "It cannot be recreated as a true protected call; use defensive checks or safe_call_pattern instead."
             )
 
-    used_services = sorted(set(SERVICE_USE_RE.findall(code)))
-    used_events = sorted(set(EVENT_USE_RE.findall(code)))
-    used_item_types = sorted(set(ITEM_TYPE_RE.findall(code)))
+    used_services = sorted(set(SERVICE_USE_RE.findall(code_for_global_scan)))
+    used_events = sorted(set(EVENT_USE_RE.findall(code_for_global_scan)))
+    used_item_types = sorted(set(ITEM_TYPE_RE.findall(code_for_global_scan)))
     used_event_fields: dict[str, list[str]] = {}
     assigned_event_fields: dict[str, list[str]] = {}
     used_object_methods: dict[str, list[str]] = {}
     used_type_values: dict[str, list[str]] = {}
-    for type_name, value_name in TYPE_VALUE_RE.findall(code):
+    for type_name, value_name in TYPE_VALUE_RE.findall(code_for_global_scan):
         used_type_values.setdefault(type_name, [])
         if value_name not in used_type_values[type_name]:
             used_type_values[type_name].append(value_name)
@@ -2949,7 +3229,7 @@ def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
             )
             continue
 
-    for service, separator, function_name in SERVICE_CALL_RE.findall(code):
+    for service, separator, function_name in SERVICE_CALL_RE.findall(code_for_global_scan):
         service_lookup = _casefold_lookup(services, service)
         if not service_lookup:
             continue
@@ -2989,11 +3269,11 @@ def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
         if known_methods and method_name not in known_methods:
             add_warning(f"{canonical}:{method_name}() is not listed for the {canonical} object in docs_cache.")
 
-    callback_matches = list(EVENT_CALLBACK_RE.finditer(code))
+    callback_matches = list(EVENT_CALLBACK_RE.finditer(code_for_global_scan))
     for index, callback_match in enumerate(callback_matches):
         event_name, variable_name = callback_match.groups()
         next_start = callback_matches[index + 1].start() if index + 1 < len(callback_matches) else len(code)
-        segment = code[callback_match.start():next_start]
+        segment = code_for_global_scan[callback_match.start():next_start]
         event_lookup = _casefold_lookup(events, event_name)
         if not event_lookup:
             continue
@@ -3173,7 +3453,7 @@ def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
             code_for_global_scan,
         )
     )
-    for line_number, line in enumerate(code.splitlines(), start=1):
+    for line_number, line in enumerate(code_for_global_scan.splitlines(), start=1):
         if re.search(r"[.:]\s*Dot\s*\(", line) and ".Magnitude" in line and re.search(r"[<>]=?", line):
             add_warning(
                 f"Line {line_number} compares a dot product with a magnitude/distance. "
@@ -3191,7 +3471,7 @@ def _validate_lua_code(code: str, file_name: str) -> dict[str, Any]:
                 break
 
     distance_name_pattern = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*(?:distance|range)[A-Za-z0-9_]*\b", re.IGNORECASE)
-    for line_number, line in enumerate(code.splitlines(), start=1):
+    for line_number, line in enumerate(code_for_global_scan.splitlines(), start=1):
         if not re.search(r"[<>]=?", line):
             continue
         distance_names = distance_name_pattern.findall(line)
@@ -3386,11 +3666,14 @@ def validate_directory_project(directory: str, sync: bool = True) -> dict[str, A
         }
 
     results = []
+    docs = _load_docs_cache()
     for path in sorted(section.rglob("*.lua")):
         if not path.is_file() or ".deleted" in path.relative_to(root).parts:
             continue
+        if root not in path.resolve().parents:
+            continue
         relative_name = str(path.relative_to(root)).replace("\\", "/")
-        validation = _validate_lua_code(path.read_text(encoding="utf-8"), relative_name)
+        validation = _validate_lua_code(path.read_text(encoding="utf-8"), relative_name, docs=docs)
         results.append(
             {
                 "file_name": relative_name,
@@ -3481,7 +3764,7 @@ def create_event_trace(
     root, path = _directory_relative_script_path(directory, file_name, sync=sync)
     path.parent.mkdir(parents=True, exist_ok=True)
     code = "\n".join(blocks).rstrip() + "\n"
-    path.write_text(code, encoding="utf-8")
+    _atomic_write_text(path, code)
     return {
         "directory": str(root),
         "file_name": str(path.relative_to(root)).replace("\\", "/"),
@@ -3868,7 +4151,10 @@ def main() -> None:
     SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
     PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
     DOCS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    mcp.run()
+    try:
+        mcp.run()
+    finally:
+        disconnect_sync()
 
 
 if __name__ == "__main__":

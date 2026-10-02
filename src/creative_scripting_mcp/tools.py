@@ -11,6 +11,7 @@ SERVER_INSTRUCTIONS = (
     "search_docs/read_service/read_event/read_object/read_type instead of broad filesystem searches, "
     "search_fandom_cache/read_fandom_page for cached gameplay wiki lookups, and "
     "force_sync_directory when a visible first sync is needed. "
+    "Use preview_directory_sync to inspect upload names, collisions, and validation before uploading. "
     "Community reference exports may be audited with audit_reference_export, but they never override official "
     "docs.easy.gg API records. Use recommend_mechanic_apis and recommend_algorithm to turn community-inspired "
     "mechanics into original, docs-backed implementations. "
@@ -185,13 +186,19 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
         "name": "edit_directory_script",
         "category": "directory projects",
         "description": "Apply a deterministic edit to an outside project script and return a unified diff.",
-        "context": "Use for small replacements, appends, prepends, or fenced-code updates without replacing files through shell commands. A .bak backup is retained.",
+        "context": "Use replace `old` with `new`, replace: old => new, append: code, prepend: code, or a fenced Lua block. Unsupported instructions fail without changes. Changed files are written atomically and retain a .bak backup; no-op edits preserve the existing backup.",
     },
     "delete_directory_script": {
         "name": "delete_directory_script",
         "category": "directory projects",
         "description": "Delete a Lua script from an outside folder project's scripts/ or drafts/ folder, optionally archiving it first.",
         "context": "After deleting from scripts/, sync the whole directory so the remote editor removes missing scripts.",
+    },
+    "preview_directory_sync": {
+        "name": "preview_directory_sync",
+        "category": "sync",
+        "description": "Preview upload files, sizes, hashes, basename collisions, and Lua validation without uploading.",
+        "context": "Use before normal directory sync. It respects bwconfig.lua, excludes legacy generated helpers, and reports intentional delete-all behavior. No token is required and no local files are changed. This cannot inspect remote editor state.",
     },
     "connect_sync": {
         "name": "connect_sync",
