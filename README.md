@@ -107,6 +107,68 @@ Main groups:
 
 Ask the MCP client to list tools for exact schemas.
 
+## Choosing Script Creation Tools
+
+Choose the destination first. `<root>` below means the MCP project root: the repository in a source checkout, the working directory in an installed wheel, or `CREATIVE_SCRIPTING_MCP_ROOT` when set.
+
+| Tool | Use when | Destination and effects |
+| --- | --- | --- |
+| `create_script` | You have Lua source and want a quick file under the MCP root. | Writes `<root>/scripts/<file_name>`. Creates parent folders and replaces an existing file without a backup. Returns `file_name`, absolute `path`, and `bytes`. |
+| `create_project_script` | You have Lua source for a named MCP-managed project. | Writes `<root>/scripts/projects/<project_name>/sync/<file_name>` with `sync=true`, or `drafts/<file_name>` with `sync=false`. Creates parent folders and replaces the file, but does not prepare the project brief or manifest. Returns project name, project-relative filename, path, folder selection, and bytes. |
+| `create_directory_script` | You have Lua source and a specific local project directory. This is the usual choice for a user-supplied folder. | Writes `<directory>/scripts/<file_name>` with `sync=true`, or `drafts/<file_name>` with `sync=false`. Creates parent folders and replaces the file, but does not prepare project metadata. Returns resolved directory, root-relative filename, path, folder selection, and bytes. |
+| `make_script` | You want one of the fixed starter templates from a short prompt. | Generates `<root>/scripts/generated_<prompt-derived-name>.lua`, checks required cached APIs, saves the file, and returns its static validation report. Replaces that generated filename if it already exists. |
+
+Inputs and defaults:
+
+```text
+create_script(file_name: string, code: string)
+create_project_script(project_name: string, file_name: string, code: string, sync: boolean = true)
+create_directory_script(directory: string, file_name: string, code: string, sync: boolean = true)
+make_script(prompt: string)
+```
+
+`file_name` is a relative `.lua` path, such as `abilities/reward.lua`, inside the selected destination. `code` is supplied Lua source. `project_name` is a name using 1–48 letters, numbers, hyphens, or underscores; `directory` is a local project root path. `create_directory_script` also accepts a filename prefixed with its selected section, such as `scripts/reward.lua` with `sync=true`. Use `create_project` or `prepare_directory_project` separately when you want briefs, manifests, configuration, and starter files.
+
+The three tools that accept `code` write UTF-8 atomically, remove trailing whitespace, and add one final newline. They do not validate the code or call Code Sync. **`sync=true` selects a folder; it does not mean "upload now".** An already-running watcher can upload a saved file if its glob includes that file. Validate separately with `validate_script` or `validate_directory_script`.
+
+`make_script` supports fixed patterns for an emerald reward every 30 seconds, a player-join chat message, or a global repeating progress bar. Prompt numbers do not customize these templates. It takes no filename or directory, and unsupported patterns fail without creating a file. For custom behavior, read the relevant docs and supply complete Lua to one of the creation tools.
+
+For example, use `create_directory_script(directory="C:\\Games\\MyMode", file_name="reward.lua", code="...", sync=true)` for the active user project. A named managed project's upload folder is `sync/`, so use its project directory with `glob_pattern="sync/**/*.lua"` when connecting; the ordinary `scripts/**/*.lua` default does not select that layout.
+
+## Choosing Code Sync Tools
+
+| Tool | Use when | Effects and differences |
+| --- | --- | --- |
+| `connect_sync` | Establish a reusable connection or replace its token. | Uploads immediately. The first call needs a directory; later calls may omit it to reuse the previous directory. On success retains the connection in process memory and applies `watch`. |
+| `sync_directory` | Upload using an explicitly supplied token and directory. | Shares `connect_sync`'s upload and connection behavior, but always requires `directory`. It also retains the connection and defaults to auto-sync. Set `watch=false` for a manual upload, then reuse the connection with `sync_connected`. |
+| `sync_connected` | Upload current files from an existing connection after editing or deleting them. | Takes no inputs. Reuses the token, directory, and glob established by any of the other three sync tools. Updates sync status without creating a probe or changing watcher settings. Fails if no connection exists. If no matching files remain, clears the remote script set. |
+| `force_sync_directory` | Explicit first-sync troubleshooting needs prepared project files or a visible probe. | Prepares the directory, then uses the same upload transport and connection behavior. Creates `main.lua` if missing, updates the brief and metadata, creates `bwconfig.lua` if missing, and writes a probe by default. Existing `main.lua` is preserved. There is no `allow_empty` input. |
+
+Inputs and defaults:
+
+```text
+connect_sync(sync_token: string, directory: string = "", glob_pattern: string = "", watch: boolean = true, allow_empty: boolean = false, probe: boolean = false, probe_message: string = "")
+sync_directory(sync_token: string, directory: string, glob_pattern: string = "", allow_empty: boolean = false, probe: boolean = false, probe_message: string = "", watch: boolean = true)
+sync_connected()
+force_sync_directory(sync_token: string, directory: string, glob_pattern: string = "", probe: boolean = true, probe_message: string = "", watch: boolean = true)
+```
+
+| Input | Meaning |
+| --- | --- |
+| `sync_token` | Required editor Sync tab token for establishing or replacing a connection. Retained only in MCP process memory on success, never persisted or returned. `sync_connected` reuses it. |
+| `directory` | Local project root path. Required for `sync_directory` and `force_sync_directory`, and on the first `connect_sync`. |
+| `glob_pattern` | Relative file-selection glob. Empty means read `syncGlob` from `bwconfig.lua`, falling back to `scripts/**/*.lua`. This selection is recalculated even when `connect_sync` reuses a directory. |
+| `watch` | Defaults to `true`: automatically uploads matching saved, added, deleted, or renamed Lua files. `false` stops the connected watcher after a successful upload but retains the connection. |
+| `allow_empty` | Defaults to `false` for `connect_sync` and `sync_directory`. `true` permits an intentional delete-all upload when no Lua files match. Connected manual and watcher syncs permit empty uploads after the last matching file is deleted, regardless of the initial value. |
+| `probe` | Defaults to `false` for normal connection/upload tools and `true` for `force_sync_directory`. Writes or replaces `scripts/zz_sync_probe.lua` containing an in-game chat message. Normal tools suppress the probe when `allow_empty=true`. |
+| `probe_message` | Optional probe chat text. Empty uses a generated message. A custom glob must select the probe file for its message to be uploaded. |
+
+Normal `connect_sync` and `sync_directory` calls upload existing selected scripts and remove exact legacy generated helpers; they do not prepare a project or generate scripts unless `probe=true`. If helper cleanup leaves no matching files, they can send an empty deletion payload even with `allow_empty=false`. `force_sync_directory` prepares `scripts/`, `drafts/`, and `prompts/` and updates the brief and metadata even with `probe=false`.
+
+Uploads return HTTP status, selected file details, connection/watcher flags where applicable, and probe/helper details for normal tools or preparation details for the force tool. HTTP success reports delivery; it does not prove that Lua executed or that the remote editor reflects the expected contents. Sync tools do not validate Lua, start matches, or retrieve editor/console state. Use `preview_directory_sync` and validation before uploading.
+
+A typical manual workflow is: `create_directory_script` → `validate_directory_script` → `preview_directory_sync` → `connect_sync(..., watch=false)` → edit → `sync_connected()`. For automatic syncing, choose `watch=true` and inspect `sync_status()`. Use `disconnect_sync()` to forget the token and stop the watcher.
+
 ## Community Reference Exports
 
 Use `audit_reference_export(directory="C:\\path\\to\\export")` to inspect a structured script export. The tool returns aggregate mechanic, API, and risk counts only. It does not return or import scripts, messages, authors, or copied implementations.

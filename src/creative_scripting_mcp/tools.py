@@ -28,6 +28,12 @@ SERVER_INSTRUCTIONS = (
     "search_fandom_cache/read_fandom_page for cached gameplay wiki lookups, and "
     "force_sync_directory when a visible first sync is needed. "
     "Use preview_directory_sync to inspect upload names, collisions, and validation before uploading. "
+    "Choose create_directory_script for a user-supplied folder, create_project_script for a named MCP-managed "
+    "project, and create_script for a file relative to the MCP root's scripts/ folder. These tools take Lua code; "
+    "make_script takes a prompt and supports only fixed starter templates. Creation tools do not directly upload. "
+    "connect_sync and sync_directory both upload immediately, retain a connection, and default to watch=true. "
+    "Use watch=false for manual uploads and sync_connected to reuse an existing connection. "
+    "force_sync_directory also prepares project files and defaults to writing a visible probe. "
     "Community reference exports may be audited with audit_reference_export, but they never override official "
     "docs.easy.gg API records. Use recommend_mechanic_apis and recommend_algorithm to turn community-inspired "
     "mechanics into original, docs-backed implementations. "
@@ -127,8 +133,15 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "create_script": {
         "name": "create_script",
         "category": "local files",
-        "description": "Create or replace a Lua script under the MCP repo's scripts/ folder.",
-        "context": "Use for quick repo-local scripts. For user project folders, prefer create_directory_script.",
+        "description": (
+            "Save supplied Lua code to a file relative to the MCP project root's scripts/ folder. "
+            "Inputs: file_name (required string, relative .lua path such as examples/reward.lua); "
+            "code (required string, complete Lua source). "
+            "Effects: creates parent folders and atomically replaces an existing file without a backup; "
+            "trailing whitespace is removed and one final newline is written. Does not validate or upload. "
+            "Returns: relative file_name, absolute path, and bytes written."
+        ),
+        "context": "Choose for a quick file under the MCP root. For a user-supplied directory use create_directory_script; for a named managed project use create_project_script; for a supported starter prompt use make_script. Validate with validate_script before uploading. An existing watcher may upload a saved file if its glob includes it.",
     },
     "read_script": {
         "name": "read_script",
@@ -163,8 +176,16 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "create_project_script": {
         "name": "create_project_script",
         "category": "projects",
-        "description": "Create or replace a Lua script in a repo project's sync/ or drafts/ folder.",
-        "context": "Use sync=true for files that should upload and sync=false for local drafts.",
+        "description": (
+            "Save supplied Lua code in a named MCP-managed project under scripts/projects/. "
+            "Inputs: project_name (required string, a project name rather than a directory path); "
+            "file_name (required string, relative .lua path inside the chosen section); code (required string, Lua source); "
+            "sync (optional boolean, default true: choose sync/; false: choose drafts/). "
+            "Effects: creates parent folders and atomically replaces the file without a backup; "
+            "does not prepare project metadata, validate, or directly upload. "
+            "Returns: project_name, project-relative file_name, absolute path, sync selection, and bytes."
+        ),
+        "context": "Choose for a project identified by name. Use create_project first if its brief, manifest, and starter main.lua are needed. sync is a folder selector, not an upload action. For an arbitrary directory use create_directory_script. To upload this layout, connect the project directory with glob_pattern='sync/**/*.lua'; the usual scripts/**/*.lua glob does not select sync/. An existing matching watcher may upload the saved file.",
     },
     "delete_project_script": {
         "name": "delete_project_script",
@@ -187,8 +208,16 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "create_directory_script": {
         "name": "create_directory_script",
         "category": "directory projects",
-        "description": "Create or replace a Lua script in an outside folder project's scripts/ or drafts/ folder.",
-        "context": "Use for the active user project directory. sync=true writes under scripts/.",
+        "description": (
+            "Save supplied Lua code under a user-selected project directory. "
+            "Inputs: directory (required string, project root path); file_name (required string, relative .lua path); "
+            "code (required string, complete Lua source); sync (optional boolean, default true: choose scripts/; "
+            "false: choose drafts/). An initial scripts/ or drafts/ prefix matching the selected section is accepted. "
+            "Effects: creates parent folders and atomically replaces the file without a backup; "
+            "does not prepare metadata, validate, or directly upload. "
+            "Returns: resolved directory, root-relative file_name, absolute path, sync selection, and bytes."
+        ),
+        "context": "Preferred when the user supplies a local directory path. Use create_project_script for a named MCP-managed project or create_script for the MCP root's scripts/. sync selects where to save; it does not call Code Sync. Validate with validate_directory_script, then preview_directory_sync and connect_sync or sync_directory. An already-running matching watcher may upload the saved file.",
     },
     "read_directory_script": {
         "name": "read_directory_script",
@@ -217,14 +246,35 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "connect_sync": {
         "name": "connect_sync",
         "category": "connected sync",
-        "description": "Store a Code Sync token in memory for one folder and upload its existing Lua scripts.",
-        "context": "Use after the user provides a fresh Sync tab token and a project directory. Normal use does not create main.lua or zz_sync_probe.lua. Set probe=true only when the user explicitly requests a visible sync test.",
+        "description": (
+            "Upload a folder immediately and establish or replace the active Code Sync connection. "
+            "Inputs: sync_token (required string from the BedWars editor Sync tab); directory (optional string, "
+            "default empty: reuse the previous connected directory; required on first connection); glob_pattern "
+            "(optional string, default empty: read bwconfig.lua syncGlob, otherwise scripts/**/*.lua); "
+            "watch (optional boolean, default true: automatically upload future matching file changes); "
+            "allow_empty (optional boolean, default false: permit clearing remote scripts if no files match); "
+            "probe (optional boolean, default false: write scripts/zz_sync_probe.lua unless allow_empty=true); "
+            "probe_message (optional string, default empty: use the generated probe message). "
+            "Effects: uploads the selected file set; on success retains token, folder, and glob "
+            "in process memory and starts or stops the watcher according to watch. Removes exact legacy generated "
+            "helper files. Returns upload status, file details, connection/watcher flags, probe, and removed helpers."
+        ),
+        "context": "Choose to establish a reusable connection or refresh its token; then use sync_connected without resending inputs. It uploads during connection, so it is not a configuration-only action. sync_directory has the same upload/session behavior but always requires directory. Set watch=false for manual syncing. If legacy-helper cleanup leaves no matching files, an empty deletion upload is permitted even with allow_empty=false. Preview first with preview_directory_sync; use probe=true only for an explicitly requested visible test. Tokens are not persisted or returned. Validation and in-game execution are separate steps.",
     },
     "sync_connected": {
         "name": "sync_connected",
         "category": "connected sync",
-        "description": "Sync the currently connected folder using the in-memory token.",
-        "context": "Use after connect_sync when files changed and the existing token/folder should be reused.",
+        "description": (
+            "Upload the current matching file set using the existing Code Sync connection. "
+            "Inputs: none. Requires an active connection established by connect_sync, sync_directory, or "
+            "force_sync_directory. Reuses its in-memory token, directory, and glob. "
+            "Effects: uploads current matching files, including local additions and deletions, and updates last-sync "
+            "status; if no files remain, clears remote scripts with the empty .lua payload, regardless of the "
+            "initial connection's allow_empty value. Does not create a probe or change watcher settings. "
+            "Returns upload status, file details, "
+            "and connection status. Fails if no active connection exists."
+        ),
+        "context": "Choose for an immediate manual upload after editing an already-connected project. Use sync_status to inspect that connection. To change token, folder, glob, or watch, call connect_sync or sync_directory instead. Connected watcher uploads also permit clearing the remote set after the final matching file is deleted. Does not validate Lua or retrieve remote editor state.",
     },
     "sync_status": {
         "name": "sync_status",
@@ -253,14 +303,34 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "sync_directory": {
         "name": "sync_directory",
         "category": "sync",
-        "description": "Upload an outside folder using the confirmed VS Code extension-compatible sync path.",
-        "context": "Use for project folders outside this repo. Normal use uploads only existing scripts and never creates main.lua or zz_sync_probe.lua. It removes exact helper files left by older MCP versions. Set probe=true only when explicitly requested. For delete-all, allow_empty=true sends an in-memory empty-basename .lua payload.",
+        "description": (
+            "Upload a specified directory now and retain it as the active Code Sync connection. "
+            "Inputs: sync_token (required string from the editor Sync tab); directory (required string, project root "
+            "path); glob_pattern (optional string, default empty: bwconfig.lua syncGlob or scripts/**/*.lua); "
+            "allow_empty (optional boolean, default false: permit clearing remote scripts when no files match); "
+            "probe (optional boolean, default false: write scripts/zz_sync_probe.lua unless allow_empty=true); "
+            "probe_message (optional string, default empty: generated message); watch (optional boolean, default "
+            "true: auto-upload future matching changes). Effects: uploads matching existing Lua files, removes exact "
+            "legacy generated helpers, and on success replaces the in-memory connection and applies watch. "
+            "Returns upload status, file details, connection/watcher flags, probe, and removed helpers."
+        ),
+        "context": "Choose when token and directory are explicitly available. It shares connect_sync's upload/session behavior; connect_sync additionally permits reusing the previous directory. For a single manual upload without auto-sync, set watch=false; the connection is still retained for sync_connected. Normal use does not prepare a project or generate scripts. allow_empty=true with no matches sends an in-memory .lua deletion payload; if legacy-helper cleanup leaves no matches, this is also permitted with allow_empty=false. Preview and validate before uploading; probe=true is for an explicitly requested visible test.",
     },
     "force_sync_directory": {
         "name": "force_sync_directory",
         "category": "sync",
-        "description": "Hard-sync an outside folder with a visible probe and confirmed extension-compatible delivery.",
-        "context": "Use when the Roblox editor needs an explicit first sync or visible probe. It uses the same confirmation transport as sync_directory.",
+        "description": (
+            "Prepare project files, optionally write a visible probe, then upload and retain a Code Sync connection. "
+            "Inputs: sync_token (required string); directory (required string, project root path); glob_pattern "
+            "(optional string, default empty: bwconfig.lua syncGlob or scripts/**/*.lua); probe (optional boolean, "
+            "default true); probe_message (optional string, default empty: generated message); watch (optional "
+            "boolean, default true: auto-upload later matching changes). Effects: creates scripts/, drafts/, and "
+            "prompts/, creates main.lua if missing, writes project metadata and the brief, creates bwconfig.lua if "
+            "missing, and writes or replaces scripts/zz_sync_probe.lua when probe=true. Uploads selected files "
+            "and on success replaces the in-memory connection and applies watch. "
+            "Returns preparation details, probe details, upload status, and connection/watcher flags."
+        ),
+        "context": "Choose only for explicit first-sync troubleshooting when project preparation or a visible in-game message is wanted. It uses the same upload transport as sync_directory, not a stronger remote-state check. It changes local project files even with probe=false; use sync_directory for normal existing-file uploads. Existing main.lua is preserved; the brief and metadata can be replaced. A custom glob must include the generated files to upload them. There is no allow_empty input; it does not offer delete-all. It cannot start a match or read the editor/console.",
     },
     "edit_script": {
         "name": "edit_script",
@@ -319,8 +389,17 @@ TOOL_DEFINITIONS: dict[str, dict[str, str]] = {
     "make_script": {
         "name": "make_script",
         "category": "authoring",
-        "description": "Generate a simple docs-backed Lua script for supported prompt patterns.",
-        "context": "Use only for simple starter templates. For aimbot, aim assist, KA, kill aura, prefab, world text, or other custom logic, use resolve_creative_mechanic and recommend_algorithm, then create or edit a project script explicitly.",
+        "description": (
+            "Generate, save, and statically validate a fixed Lua starter template from a text prompt. "
+            "Inputs: prompt (required non-empty string). Supported patterns select a fixed template: an emerald "
+            "reward every 30 seconds, a player-join chat message, or a global repeating progress bar. "
+            "Effects: checks required cached APIs, writes generated_<prompt-derived-name>.lua under the MCP "
+            "root's scripts/, and replaces that file if it already exists. It does not accept supplied Lua code, "
+            "a directory, or an output filename; prompt numbers do not customize the fixed template. "
+            "Returns file_name, path, explanation, required_docs, and validation. Does not directly upload. "
+            "Unsupported prompt patterns fail without generating a file."
+        ),
+        "context": "Choose only when a fixed starter is sufficient. For custom Lua or a specific destination, use create_script, create_project_script, or create_directory_script with complete source code. For complex mechanics use resolve_creative_mechanic and recommend_algorithm before authoring. An existing watcher may upload a generated file if its glob includes it.",
     },
 }
 
