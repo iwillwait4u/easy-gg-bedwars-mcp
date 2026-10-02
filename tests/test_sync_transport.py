@@ -76,6 +76,17 @@ class SyncTransportTests(unittest.TestCase):
         self.assertEqual(result["uploaded_files"], [])
         self.assertIsNone(result["placeholder_file"])
 
+    def test_helper_cleanup_accepts_noncanonical_project_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            scripts = root / "scripts"
+            scripts.mkdir()
+            helper = scripts / "main.lua"
+            helper.write_text(server.GENERATED_MAIN_CODE, encoding="utf-8")
+            alias = root / "scripts" / ".."
+            self.assertEqual(server._remove_generated_sync_helpers(alias), ["scripts/main.lua"])
+            self.assertFalse(helper.exists())
+
     def test_delete_payload_uses_empty_lua_basename(self) -> None:
         calls: list[dict[str, object]] = []
 

@@ -875,6 +875,7 @@ def _write_sync_probe(root: Path, message: str = "") -> dict[str, Any]:
 
 
 def _generated_sync_helper_paths(root: Path) -> list[Path]:
+    resolved_root = root.resolve()
     scripts_dir = root / "scripts"
     candidates = (
         (scripts_dir / "main.lua", lambda code: code == GENERATED_MAIN_CODE),
@@ -882,7 +883,7 @@ def _generated_sync_helper_paths(root: Path) -> list[Path]:
     )
     generated: list[Path] = []
     for path, is_generated in candidates:
-        if not path.is_file() or path.is_symlink() or root not in path.resolve().parents:
+        if not path.is_file() or path.is_symlink() or resolved_root not in path.resolve().parents:
             continue
         try:
             code = path.read_text(encoding="utf-8")
